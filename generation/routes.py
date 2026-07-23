@@ -1,10 +1,11 @@
-# app/generation/routes.py
+# generation/routes.py
 
 import time
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from loguru import logger
 
 from app.database import get_db
 from auth.routes import get_current_user
@@ -31,9 +32,8 @@ class QueryResponse(BaseModel):
     answer: str
     sources: List[SourceInfo]
     latency_ms: int
-
-
-from typing import List
+    retrieval_ms: int
+    generation_ms: int
 
 
 @router.post("/", response_model=QueryResponse)
@@ -43,42 +43,55 @@ def query(
     current_user: User = Depends(get_current_user),
 ):
     """
-    The complete RAG pipeline — five steps, one endpoint:
-
-    Step 1: Retrieve relevant chunks from OpenSearch (role-filtered)
-    Step 2: Build a context-aware prompt
-    Step 3: Generate an answer using the LLM
-    Step 4: Log everything for evaluation
-    Step 5: Return the answer with citations
-
-    Every step is timed so we can monitor performance in the dashboard.
+    Full RAG pipeline with per-step latency tracking.
+    
+    We now track three time values:
+    - retrieval_ms: how long OpenSearch took to find relevant chunks
+    - generation_ms: how long Groq took to generate the answer
+    - latency_ms: total end-to-end time
+    
+    This matters because if your system is slow, you need to know
+    whether to optimize the search layer or the LLM call.
+    They have completely different solutions.
     """
-    start = time.time()
+    total_start = time.time()
 
-    # ── Step 1: Retrieve ──────────────────────────────────────────────────
+    logger.info(f"Query received | user={current_user.email} | question={request.question[:80]}")
+
+    # ── Retrieval ─────────────────────────────────────────────────────────
+    retrieval_start = time.time()
     chunks = hybrid_search(
         query=request.question,
         user_role=current_user.role,
         top_k=5,
     )
+    retrieval_ms = int((time.time() - retrieval_start) * 1000)
 
     if not chunks:
+        logger.warning(f"No chunks found | user={current_user.email} | question={request.question[:80]}")
         return QueryResponse(
             answer="No relevant documents were found for your question. Please contact HR directly.",
             sources=[],
-            latency_ms=int((time.time() - start) * 1000),
+            latency_ms=int((time.time() - total_start) * 1000),
+            retrieval_ms=retrieval_ms,
+            generation_ms=0,
         )
 
-    # ── Step 2: Build Prompt ──────────────────────────────────────────────
+    logger.info(f"Retrieval complete | chunks={len(chunks)} | retrieval_ms={retrieval_ms}")
+
+    # ── Generation ────────────────────────────────────────────────────────
+    generation_start = time.time()
     prompt = build_prompt(request.question, chunks)
-
-    # ── Step 3: Generate ──────────────────────────────────────────────────
     answer = generate_answer(prompt)
+    generation_ms = int((time.time() - generation_start) * 1000)
 
-    # ── Step 4: Calculate latency and log ─────────────────────────────────
-    latency_ms = int((time.time() - start) * 1000)
+    logger.info(f"Generation complete | generation_ms={generation_ms}")
+
+    # ── Totals ────────────────────────────────────────────────────────────
+    latency_ms = int((time.time() - total_start) * 1000)
     avg_score = sum(c["score"] for c in chunks) / len(chunks)
 
+    # ── Log to database ───────────────────────────────────────────────────
     log = QueryLog(
         user_id=current_user.id,
         query_text=request.question,
@@ -89,7 +102,12 @@ def query(
     db.add(log)
     db.commit()
 
-    # ── Step 5: Return ────────────────────────────────────────────────────
+    logger.info(
+        f"Query complete | user={current_user.email} | "
+        f"retrieval_ms={retrieval_ms} | generation_ms={generation_ms} | "
+        f"total_ms={latency_ms}"
+    )
+
     sources = [
         SourceInfo(
             filename=c["filename"],
@@ -99,4 +117,10 @@ def query(
         for c in chunks
     ]
 
-    return QueryResponse(answer=answer, sources=sources, latency_ms=latency_ms)
+    return QueryResponse(
+        answer=answer,
+        sources=sources,
+        latency_ms=latency_ms,
+        retrieval_ms=retrieval_ms,
+        generation_ms=generation_ms,
+    )

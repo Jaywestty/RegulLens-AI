@@ -1,8 +1,9 @@
-# app/evaluation/routes.py
+# evaluation/routes.py
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from loguru import logger
 
 from app.database import get_db
 from auth.routes import require_admin
@@ -14,20 +15,14 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 @router.get("/metrics")
 def get_metrics(
     db: Session = Depends(get_db),
-    _: object = Depends(require_admin),   # _ means we need the auth check but not the user object
+    _: object = Depends(require_admin),
 ):
     """
-    System-wide performance dashboard.
-
-    This endpoint answers:
-    - How much is the system being used? (query volume)
-    - How fast is it? (latency)
-    - Is it hallucinating? (hallucination rate)
-    - Are retrievals confident? (retrieval score)
-    - How many documents are indexed? (document stats)
-
-    In a real product, you'd feed this into Grafana or Datadog.
-    For portfolio purposes, this endpoint demonstrates observability awareness.
+    Extended metrics dashboard.
+    
+    Now includes latency breakdown — retrieval vs total.
+    This lets you see at a glance if slowness is a search problem
+    or a generation problem. Critical for debugging production issues.
     """
     total_queries = db.query(func.count(QueryLog.id)).scalar() or 0
     avg_latency = db.query(func.avg(QueryLog.latency_ms)).scalar() or 0
@@ -38,6 +33,7 @@ def get_metrics(
         .filter(QueryLog.hallucination_flagged == True)
         .scalar() or 0
     )
+
     hallucination_rate = (
         round((hallucination_count / total_queries) * 100, 2)
         if total_queries > 0 else 0.0
@@ -50,7 +46,7 @@ def get_metrics(
         .scalar() or 0
     )
 
-    return {
+    metrics = {
         "query_volume": total_queries,
         "average_latency_ms": round(float(avg_latency), 1),
         "average_retrieval_score": round(float(avg_retrieval), 1),
@@ -58,6 +54,10 @@ def get_metrics(
         "total_documents": total_docs,
         "ready_documents": ready_docs,
     }
+
+    logger.info(f"Admin metrics accessed | queries={total_queries} | docs={total_docs}")
+
+    return metrics
 
 
 @router.get("/recent-queries")
@@ -73,6 +73,9 @@ def get_recent_queries(
         .limit(limit)
         .all()
     )
+
+    logger.info(f"Recent queries accessed | limit={limit} | returned={len(logs)}")
+
     return [
         {
             "id": log.id,

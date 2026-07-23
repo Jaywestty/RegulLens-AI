@@ -1,8 +1,10 @@
-# app/documents/routes.py
+# documents/routes.py
 
 import uuid
+import time
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
+from loguru import logger
 
 from app.database import get_db
 from auth.models import User
@@ -25,18 +27,9 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_hr_or_admin),
 ):
-    """
-    The complete document ingestion pipeline in one endpoint.
+    start = time.time()
+    logger.info(f"Upload started | file={file.filename} | user={current_user.email}")
 
-    Order of operations matters:
-    1. Validate → 2. Store raw file → 3. Create DB record → 4. Process →
-    5. Embed → 6. Index in OpenSearch → 7. Mark ready
-
-    We create the DB record BEFORE processing (step 3) so if processing
-    fails, we have a record of the failed document to debug later.
-    """
-
-    # ── 1. Validate file type ─────────────────────────────────────────────
     extension = file.filename.split(".")[-1].lower()
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
@@ -44,13 +37,10 @@ async def upload_document(
             detail=f"Only PDF and DOCX files are supported. Got: .{extension}"
         )
 
-    # ── 2. Read file bytes ────────────────────────────────────────────────
     file_bytes = await file.read()
-
-    # ── 3. Upload raw file to Supabase Storage ────────────────────────────
     storage_path = upload_file(file_bytes, file.filename, file.content_type)
+    logger.info(f"File stored | path={storage_path}")
 
-    # ── 4. Create database record (status = processing) ───────────────────
     doc = Document(
         filename=file.filename,
         storage_path=storage_path,
@@ -63,16 +53,14 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
 
-    # ── 5–7. Process, embed, and index ────────────────────────────────────
     try:
-        # Extract text and split into chunks
         chunks = process_document(file_bytes, extension)
+        logger.info(f"Document chunked | file={file.filename} | chunks={len(chunks)}")
 
-        # Embed all chunk texts in one batch (efficient)
         texts = [c["text"] for c in chunks]
         embeddings = embed_texts(texts)
+        logger.info(f"Embeddings generated | count={len(embeddings)}")
 
-        # Prepare for OpenSearch — each chunk gets metadata + its vector
         os_chunks = [
             {
                 "document_id": doc.id,
@@ -86,13 +74,18 @@ async def upload_document(
             for i, chunk in enumerate(chunks)
         ]
 
-        # Send everything to OpenSearch at once
         bulk_index_chunks(os_chunks)
+        logger.info(f"Chunks indexed in OpenSearch | document_id={doc.id}")
 
-        # Update the database record — document is now searchable
         doc.status = DocumentStatus.READY
         doc.chunk_count = len(chunks)
         db.commit()
+
+        total_ms = int((time.time() - start) * 1000)
+        logger.info(
+            f"Upload complete | file={file.filename} | "
+            f"chunks={len(chunks)} | total_ms={total_ms}"
+        )
 
         return {
             "message": "Document uploaded and processed successfully",
@@ -103,9 +96,9 @@ async def upload_document(
         }
 
     except Exception as e:
-        # Mark as failed so admins know something went wrong
         doc.status = DocumentStatus.FAILED
         db.commit()
+        logger.error(f"Upload failed | file={file.filename} | error={str(e)}")
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 
@@ -114,7 +107,6 @@ def list_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_hr_or_admin),
 ):
-    """Returns all documents. HR/Admin only."""
     docs = db.query(Document).all()
     return [
         {
