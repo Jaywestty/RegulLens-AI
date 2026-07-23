@@ -26,3 +26,6 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 frontend/README.md
+frontend/public/icons.svg
+frontend/src/assets/vite.svg
+frontend/public/favicon.svg
