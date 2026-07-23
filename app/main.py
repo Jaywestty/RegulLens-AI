@@ -14,6 +14,7 @@ from generation.routes import router as query_router
 from evaluation.routes import router as admin_router
 from retrieval.opensearch import create_index
 from documents.storage import ensure_bucket_exists
+from fastapi.middleware.cors import CORSMiddleware
 
 logger = setup_logger()
 
@@ -37,6 +38,14 @@ app = FastAPI(
     description="AI-powered policy and compliance assistant with hybrid RAG retrieval",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth_router)
