@@ -5,3 +5,11 @@ app/__pycache__/config.cpython-310.pyc
 app/__pycache__/database.cpython-310.pyc
 app/__pycache__/main.cpython-310.pyc
 .vscode/settings.json
+.__pycache__/
+._pycache_/
+/.pyc
+auth/__pycache__/__init__.cpython-310.pyc
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
