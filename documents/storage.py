@@ -1,37 +1,62 @@
-# app/documents/storage.py
-
 import uuid
-from supabase import create_client, Client
+import boto3
+from botocore.client import Config
 from app.config import settings
 
-def get_supabase_client() -> Client:
-    """Creates and returns a Supabase client."""
-    return create_client(settings.supabase_url, settings.supabase_key)
+
+def get_storage_client():
+    """
+    Creates an S3-compatible client pointed at MinIO locally.
+    In production, point STORAGE_ENDPOINT at Supabase Storage or real S3
+    and this function needs zero changes.
+    
+    endpoint_url: where the storage server lives
+    signature_version=s3v4: the auth signing method MinIO expects
+    """
+    return boto3.client(
+        "s3",
+        endpoint_url=settings.storage_endpoint,
+        aws_access_key_id=settings.storage_access_key,
+        aws_secret_access_key=settings.storage_secret_key,
+        region_name=settings.storage_region,
+        config=Config(signature_version="s3v4"),
+    )
+
+
+def ensure_bucket_exists():
+    """
+    Creates the bucket if it doesn't exist yet.
+    Safe to call every startup — checks first before creating.
+    A bucket is like a top-level folder in your storage.
+    """
+    client = get_storage_client()
+    try:
+        client.head_bucket(Bucket=settings.storage_bucket)
+    except Exception:
+        client.create_bucket(Bucket=settings.storage_bucket)
+        print(f"✅ Created storage bucket: {settings.storage_bucket}")
 
 
 def upload_file(file_bytes: bytes, filename: str, content_type: str) -> str:
     """
-    Uploads a file to Supabase Storage.
-    
-    We generate a UUID prefix so two files with the same name don't clash.
-    Example storage path: "a3f9c1b2-xxxx/employee-handbook.pdf"
-    
-    Returns the storage path — we save this in PostgreSQL to find the file later.
+    Uploads a file to MinIO/S3.
+    Returns the storage path — saved in PostgreSQL so we can find the file later.
     """
-    client = get_supabase_client()
+    client = get_storage_client()
     storage_path = f"{uuid.uuid4()}/{filename}"
 
-    client.storage.from_(settings.supabase_bucket).upload(
-        path=storage_path,
-        file=file_bytes,
-        file_options={"content-type": content_type}
+    client.put_object(
+        Bucket=settings.storage_bucket,
+        Key=storage_path,
+        Body=file_bytes,
+        ContentType=content_type,
     )
 
     return storage_path
 
 
 def download_file(storage_path: str) -> bytes:
-    """Downloads a file from Supabase Storage and returns its raw bytes."""
-    client = get_supabase_client()
-    response = client.storage.from_(settings.supabase_bucket).download(storage_path)
-    return response
+    """Downloads a file and returns its raw bytes."""
+    client = get_storage_client()
+    response = client.get_object(Bucket=settings.storage_bucket, Key=storage_path)
+    return response["Body"].read()
