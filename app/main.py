@@ -11,6 +11,7 @@ from documents.routes import router as doc_router
 from generation.routes import router as query_router
 from evaluation.routes import router as admin_router
 from retrieval.opensearch import create_index
+from documents.storage import ensure_bucket_exists
 
 
 @asynccontextmanager
@@ -30,6 +31,8 @@ async def lifespan(app: FastAPI):
     print("✅ Database tables ready.")
     create_index()
     print("✅ OpenSearch index ready.")
+    ensure_bucket_exists()
+    print("✅ Storage bucket ready.")
     yield
     # Shutdown (nothing to clean up for now)
     print("👋 Shutting down.")
