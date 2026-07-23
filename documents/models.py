@@ -1,0 +1,60 @@
+# app/documents/models.py
+
+import enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class DocumentStatus(str, enum.Enum):
+    PROCESSING = "processing"   # File uploaded, being chunked and embedded
+    READY = "ready"             # Fully processed, searchable
+    FAILED = "failed"           # Something went wrong during processing
+
+
+class DocumentVisibility(str, enum.Enum):
+    ALL = "all"                 # Every logged-in employee can see this
+    HR_ONLY = "hr_only"         # Only HR and Admin
+    ADMIN_ONLY = "admin_only"   # Only Admin
+
+
+class Document(Base):
+    """
+    Stores metadata about each uploaded document.
+    The actual file lives in Supabase Storage.
+    This table is the index — it tracks what files exist and their status.
+    """
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, nullable=False)
+    # storage_path = the file's path inside Supabase Storage bucket
+    storage_path = Column(String, nullable=False)
+    file_type = Column(String, nullable=False)       # "pdf" or "docx"
+    status = Column(Enum(DocumentStatus), default=DocumentStatus.PROCESSING)
+    visibility = Column(Enum(DocumentVisibility), default=DocumentVisibility.ALL)
+    # ForeignKey links to the users table — tracks who uploaded this
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    chunk_count = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class QueryLog(Base):
+    """
+    Every single query gets recorded here.
+    This powers the admin evaluation dashboard.
+    It's how we know if the system is working well or drifting.
+    """
+    __tablename__ = "query_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    query_text = Column(String, nullable=False)
+    answer_text = Column(String)
+    # retrieval_score: how confident was the search? (0-100)
+    retrieval_score = Column(Integer)
+    # faithfulness_score: did the answer match the context? (0-100)
+    faithfulness_score = Column(Integer)
+    latency_ms = Column(Integer)
+    hallucination_flagged = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

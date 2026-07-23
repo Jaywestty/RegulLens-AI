@@ -1,1 +1,7 @@
 .env
+app/__pycache__/__init__.cpython-310.pyc
+app/main.py
+app/__pycache__/config.cpython-310.pyc
+app/__pycache__/database.cpython-310.pyc
+app/__pycache__/main.cpython-310.pyc
+.vscode/settings.json
