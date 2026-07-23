@@ -1,17 +1,28 @@
+# Virtual environment
+venv/
+
+# Environment variables
 .env
-app/__pycache__/__init__.cpython-310.pyc
-app/main.py
-app/__pycache__/config.cpython-310.pyc
-app/__pycache__/database.cpython-310.pyc
-app/__pycache__/main.cpython-310.pyc
-.vscode/settings.json
-.__pycache__/
-._pycache_/
-/.pyc
-auth/__pycache__/__init__.cpython-310.pyc
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
+
+# Logs
 logs/*.log
 logs/*.zip
+
+# VS Code
+.vscode/
+
+# Node modules (frontend dependencies — huge folder, never commit)
+frontend/node_modules/
+
+# Vite build output
+frontend/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+frontend/README.md
