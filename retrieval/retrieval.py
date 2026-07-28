@@ -4,6 +4,7 @@ from typing import List, Dict
 from retrieval.opensearch import get_client, INDEX_NAME
 from documents.embedder import embed_text
 from auth.models import UserRole
+from retrieval.reranker import rerank
 
 
 def get_allowed_visibility(role: UserRole) -> List[str]:
@@ -48,8 +49,14 @@ def hybrid_search(query: str, user_role: UserRole, top_k: int = 5) -> List[Dict]
     allowed_visibility = get_allowed_visibility(user_role)
     query_vector = embed_text(query)
 
+    # Retrieve a wider candidate pool than we actually need. The re-ranker
+    # is more accurate than raw hybrid scoring but too slow to run over
+    # the whole index, so OpenSearch narrows the field first and the
+    # cross-encoder picks the true best top_k from that pool.
+    candidate_pool_size = max(top_k * 4, 20)
+
     search_body = {
-        "size": top_k,
+        "size": candidate_pool_size,
         "query": {
             "bool": {
                 # 'must' = mandatory filter. Visibility check is non-negotiable.
@@ -83,7 +90,7 @@ def hybrid_search(query: str, user_role: UserRole, top_k: int = 5) -> List[Dict]
 
     response = client.search(index=INDEX_NAME, body=search_body)
 
-    return [
+    candidates = [
         {
             "text": hit["_source"]["text"],
             "document_id": hit["_source"]["document_id"],
@@ -93,3 +100,5 @@ def hybrid_search(query: str, user_role: UserRole, top_k: int = 5) -> List[Dict]
         }
         for hit in response["hits"]["hits"]
     ]
+
+    return rerank(query, candidates, top_k)

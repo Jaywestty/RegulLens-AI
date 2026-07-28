@@ -2,6 +2,7 @@
 
 import enum
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -39,6 +40,24 @@ class Document(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class Conversation(Base):
+    """
+    Groups a sequence of related queries together into one session.
+
+    An employee's first question starts a new conversation. Follow-up
+    questions reference the same conversation_id, which lets the query
+    route pull prior turns as context for the LLM.
+    """
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    turns = relationship("QueryLog", back_populates="conversation", order_by="QueryLog.created_at")
+
+
 class QueryLog(Base):
     """
     Every single query gets recorded here.
@@ -49,6 +68,8 @@ class QueryLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=True)
+    turn_number = Column(Integer, nullable=False, default=1)
     query_text = Column(String, nullable=False)
     answer_text = Column(String)
     # retrieval_score: how confident was the search? (0-100)
@@ -58,3 +79,5 @@ class QueryLog(Base):
     latency_ms = Column(Integer)
     hallucination_flagged = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    conversation = relationship("Conversation", back_populates="turns")

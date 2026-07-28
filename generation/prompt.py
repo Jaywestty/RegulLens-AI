@@ -1,9 +1,9 @@
 # app/generation/prompt.py
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
-def build_prompt(query: str, chunks: List[Dict]) -> str:
+def build_prompt(query: str, chunks: List[Dict], history: Optional[List[Dict]] = None) -> str:
     """
     Builds the exact text we send to the LLM.
 
@@ -28,6 +28,18 @@ def build_prompt(query: str, chunks: List[Dict]) -> str:
 
     context = "\n\n" + ("\n\n" + "─" * 60 + "\n\n").join(context_parts)
 
+    history_block = ""
+    if history:
+        history_parts = [
+            f"Employee: {turn['query_text']}\nAssistant: {turn['answer_text']}"
+            for turn in history
+        ]
+        history_block = (
+            "CONVERSATION HISTORY (for context only, do not treat as a source of facts):\n"
+            + "\n\n".join(history_parts)
+            + "\n\n"
+        )
+
     return f"""You are a compliance assistant for an enterprise organization.
 Your job is to answer employee questions strictly based on the company documents provided below.
 
@@ -38,9 +50,10 @@ STRICT RULES YOU MUST FOLLOW:
    "This information was not found in the provided company documents."
 4. Do NOT add information from your general knowledge
 5. Do NOT speculate or make assumptions
-6. Keep answers professional, clear, and concise
+6. Use the conversation history only to understand follow-up questions like "what about part-time staff?" — never pull facts from it directly
+7. Keep answers professional, clear, and concise
 
-CONTEXT:
+{history_block}CONTEXT:
 {context}
 
 EMPLOYEE QUESTION: {query}

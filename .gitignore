@@ -29,3 +29,7 @@ frontend/README.md
 frontend/public/icons.svg
 frontend/src/assets/vite.svg
 frontend/public/favicon.svg
+alembic.ini
+.gitignore
+alembic/script.py.mako
+alembic/README
