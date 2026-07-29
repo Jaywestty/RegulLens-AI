@@ -62,6 +62,23 @@ def create_index():
     print(f"✅ Index '{INDEX_NAME}' created.")
 
 
+def delete_chunks_by_document(document_id: int):
+    """
+    Removes every indexed chunk belonging to a document.
+
+    Used when a document is replaced by a newer version — the old chunks
+    must be removed from OpenSearch or the search index would return
+    answers sourced from an outdated policy alongside the current one.
+    """
+    client = get_client()
+    client.delete_by_query(
+        index=INDEX_NAME,
+        body={"query": {"term": {"document_id": document_id}}},
+    )
+    client.indices.refresh(index=INDEX_NAME)
+
+
+
 def bulk_index_chunks(chunks: list):
     """
     Stores many chunks at once using OpenSearch's bulk API.

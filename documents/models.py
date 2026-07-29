@@ -11,6 +11,7 @@ class DocumentStatus(str, enum.Enum):
     PROCESSING = "processing"   # File uploaded, being chunked and embedded
     READY = "ready"             # Fully processed, searchable
     FAILED = "failed"           # Something went wrong during processing
+    SUPERSEDED = "superseded"   # Replaced by a newer version, no longer searchable
 
 
 class DocumentVisibility(str, enum.Enum):
@@ -37,6 +38,14 @@ class Document(Base):
     # ForeignKey links to the users table — tracks who uploaded this
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     chunk_count = Column(Integer, default=0)
+
+    # version starts at 1 and increments each time this document is replaced.
+    # previous_version_id links back to the document this one superseded,
+    # so the full history of a policy can be traced even though only the
+    # current version is searchable.
+    version = Column(Integer, default=1, nullable=False)
+    previous_version_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

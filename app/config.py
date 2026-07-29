@@ -18,6 +18,11 @@ class Settings(BaseSettings):
 
     groq_api_key: str
 
+    # Path to the Tesseract OCR executable. Defaults to the standard
+    # Windows install location for local dev. Set TESSERACT_CMD in .env
+    # to override, e.g. to "/usr/bin/tesseract" on Linux/Render.
+    tesseract_cmd: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
     class Config:
         env_file = ".env"
         case_sensitive = False
