@@ -1,10 +1,18 @@
 # app/auth/models.py
 
 import enum
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey
 from sqlalchemy.sql import func
 from app.database import Base
 
+
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class UserRole(str, enum.Enum):
     """
@@ -34,8 +42,13 @@ class User(Base):
     full_name = Column(String, nullable=False)
     # NEVER store plain text passwords — only store hashes
     hashed_password = Column(String, nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.EMPLOYEE, nullable=False)
+    role = Column(
+        Enum(UserRole, values_callable=lambda enum_cls: [member.value for member in enum_cls]),
+        default=UserRole.EMPLOYEE,
+        nullable=False,
+    )
     is_active = Column(Boolean, default=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     # server_default=func.now() means the DATABASE sets this timestamp
     # More reliable than setting it in Python (timezone consistency)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
