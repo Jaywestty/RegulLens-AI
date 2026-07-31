@@ -4,6 +4,7 @@ import { useState } from "react"
 import { login as loginApi, getMe } from "../services/api"
 import { useAuth } from "../context/AuthContext"
 import { Link, useNavigate } from "react-router-dom"
+import BrandMark from "../components/BrandMark"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -20,18 +21,13 @@ export default function Login() {
     setLoading(true)
 
     try {
-      // Step 1: get the token
       const tokenRes = await loginApi(email, password)
       const token = tokenRes.data.access_token
 
-      // Step 2: use the token to fetch user profile
-      // We need the profile to know their role for route guarding
       localStorage.setItem("token", token)
       const userRes = await getMe()
 
-      // Step 3: store both in context
       login(token, userRes.data)
-
       navigate("/query")
     } catch (err) {
       setError("Incorrect email or password. Please try again.")
@@ -41,71 +37,76 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white">
 
-        <div className="mb-8 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
-              <div className="w-4 h-4 rounded-full bg-white opacity-90"></div>
-            </div>
-          </div>
-          <h1 className="text-white text-xl font-semibold">Compliance Platform</h1>
-          <p className="text-slate-400 text-sm mt-1">Sign in to your account</p>
-        </div>
+      <div
+        className="lg:w-1/2 lg:min-h-screen flex flex-col justify-center items-center px-8 py-10 lg:py-0 text-white text-center relative overflow-hidden"
+        style={{ background: "linear-gradient(160deg, #1E8A8A 0%, #146666 100%)" }}
+      >
+        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white opacity-5" />
+        <div className="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-white opacity-5" />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="you@company.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="••••••••"
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <p className="text-center text-slate-500 text-xs mt-6">
-          Don't have an account?{" "}
-          <Link to="/signup" className="text-blue-400 hover:text-blue-300 transition-colors">
-            Create your organization
-          </Link>
+        <BrandMark className="w-14 h-14 mb-4 relative" />
+        <h1 className="font-display text-2xl lg:text-3xl font-bold relative">
+          Compliance Intelligence
+        </h1>
+        <p className="text-white/80 text-sm mt-2 max-w-xs relative">
+          Ask your company's policies a question and get a cited, trustworthy answer in seconds.
         </p>
-
       </div>
+
+      <div className="lg:w-1/2 flex items-center justify-center px-6 py-10">
+        <div className="w-full max-w-sm">
+
+          <h2 className="font-display text-2xl font-bold mb-1" style={{ color: "var(--color-ink)" }}>
+            Sign in to continue
+          </h2>
+          <p className="text-sm mb-8" style={{ color: "var(--color-muted)" }}>
+            Enter your details to access your workspace
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="field-label">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="field-input"
+                placeholder="you@company.com"
+              />
+            </div>
+
+            <div>
+              <label className="field-label">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="field-input"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {error && <p className="error-banner">{error}</p>}
+
+            <button type="submit" disabled={loading} className="btn-primary">
+              {loading ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+
+          <p className="text-center text-sm mt-6" style={{ color: "var(--color-muted)" }}>
+            Don't have an organization yet?{" "}
+            <Link to="/signup" className="font-semibold" style={{ color: "var(--color-primary)" }}>
+              Create one
+            </Link>
+          </p>
+
+        </div>
+      </div>
+
     </div>
   )
 }
