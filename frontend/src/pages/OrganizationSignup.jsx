@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { signupOrganization, getMe } from "../services/api"
 import { useAuth } from "../context/AuthContext"
+import BrandMark from "../components/BrandMark"
 
 export default function OrganizationSignup() {
   const [form, setForm] = useState({
@@ -44,103 +45,114 @@ export default function OrganizationSignup() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white">
 
-        <div className="mb-8 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
-              <div className="w-4 h-4 rounded-full bg-white opacity-90"></div>
-            </div>
-          </div>
-          <h1 className="text-white text-xl font-semibold">Create your organization</h1>
-          <p className="text-slate-400 text-sm mt-1">Set up your company's compliance platform</p>
-        </div>
+      <div
+        className="lg:w-1/2 lg:min-h-screen flex flex-col justify-center items-center px-8 py-10 lg:py-0 text-white text-center relative overflow-hidden"
+        style={{ background: "linear-gradient(160deg, #1E8A8A 0%, #146666 100%)" }}
+      >
+        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white opacity-5" />
+        <div className="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-white opacity-5" />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-              Organization Name
-            </label>
-            <input
-              type="text"
-              name="organization_name"
-              value={form.organization_name}
-              onChange={handleChange}
-              required
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="Acme Inc"
-            />
-          </div>
+        <BrandMark className="w-14 h-14 mb-4 relative" />
+        <h1 className="font-display text-2xl lg:text-3xl font-bold relative">
+          Compliance Intelligence
+        </h1>
+        <p className="text-white/80 text-sm mt-2 max-w-xs relative">
+          Set up your company's private workspace in under a minute.
+        </p>
+      </div>
 
-          <div>
-            <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-              Your Full Name
-            </label>
-            <input
-              type="text"
-              name="admin_full_name"
-              value={form.admin_full_name}
-              onChange={handleChange}
-              required
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="John Doe"
-            />
-          </div>
-
-          <div>
-            <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-              Your Email
-            </label>
-            <input
-              type="email"
-              name="admin_email"
-              value={form.admin_email}
-              onChange={handleChange}
-              required
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="you@company.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-              Password
-            </label>
-            <input
-              type="password"
-              name="admin_password"
-              value={form.admin_password}
-              onChange={handleChange}
-              required
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="••••••••"
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
+      <div className="lg:w-1/2 flex items-center justify-center px-6 py-10">
+        <div className="w-full max-w-sm">
 
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+            onClick={() => navigate("/login")}
+            aria-label="Back to sign in"
+            className="back-btn mb-6"
           >
-            {loading ? "Creating organization..." : "Create organization"}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
           </button>
-        </form>
 
-        <p className="text-center text-slate-500 text-xs mt-6">
-          Already have an account?{" "}
-          <Link to="/login" className="text-blue-400 hover:text-blue-300 transition-colors">
-            Sign in
-          </Link>
-        </p>
+          <h2 className="font-display text-2xl font-bold mb-1" style={{ color: "var(--color-ink)" }}>
+            Create your organization
+          </h2>
+          <p className="text-sm mb-8" style={{ color: "var(--color-muted)" }}>
+            You'll be the first admin for your company's workspace
+          </p>
 
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="field-label">Organization name</label>
+              <input
+                type="text"
+                name="organization_name"
+                value={form.organization_name}
+                onChange={handleChange}
+                required
+                className="field-input"
+                placeholder="Acme Inc"
+              />
+            </div>
+
+            <div>
+              <label className="field-label">Your full name</label>
+              <input
+                type="text"
+                name="admin_full_name"
+                value={form.admin_full_name}
+                onChange={handleChange}
+                required
+                className="field-input"
+                placeholder="John Doe"
+              />
+            </div>
+
+            <div>
+              <label className="field-label">Your email</label>
+              <input
+                type="email"
+                name="admin_email"
+                value={form.admin_email}
+                onChange={handleChange}
+                required
+                className="field-input"
+                placeholder="you@company.com"
+              />
+            </div>
+
+            <div>
+              <label className="field-label">Password</label>
+              <input
+                type="password"
+                name="admin_password"
+                value={form.admin_password}
+                onChange={handleChange}
+                required
+                className="field-input"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {error && <p className="error-banner">{error}</p>}
+
+            <button type="submit" disabled={loading} className="btn-primary">
+              {loading ? "Creating organization..." : "Create organization"}
+            </button>
+          </form>
+
+          <p className="text-center text-sm mt-6" style={{ color: "var(--color-muted)" }}>
+            Already have an account?{" "}
+            <Link to="/login" className="font-semibold" style={{ color: "var(--color-primary)" }}>
+              Sign in
+            </Link>
+          </p>
+
+        </div>
       </div>
+
     </div>
   )
 }
