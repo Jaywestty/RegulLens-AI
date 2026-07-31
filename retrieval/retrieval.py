@@ -24,7 +24,7 @@ def get_allowed_visibility(role: UserRole) -> List[str]:
         return ["all"]
 
 
-def hybrid_search(query: str, user_role: UserRole, top_k: int = 5) -> List[Dict]:
+def hybrid_search(query: str, user_role: UserRole, organization_id: int, top_k: int = 5) -> List[Dict]:
     """
     Runs a hybrid search combining BM25 and vector similarity.
 
@@ -61,7 +61,8 @@ def hybrid_search(query: str, user_role: UserRole, top_k: int = 5) -> List[Dict]
             "bool": {
                 # 'must' = mandatory filter. Visibility check is non-negotiable.
                 "must": [
-                    {"terms": {"visibility": allowed_visibility}}
+                    {"terms": {"visibility": allowed_visibility}},
+                    {"term": {"organization_id": organization_id}},
                 ],
                 # 'should' = scored conditions. Higher score = more relevant.
                 "should": [
