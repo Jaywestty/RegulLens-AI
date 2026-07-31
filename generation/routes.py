@@ -120,6 +120,7 @@ def query(
         query=request.question,
         user_role=current_user.role,
         organization_id=current_user.organization_id,
+        department_ids=[d.id for d in current_user.departments],
         top_k=5,
     )
     retrieval_ms = int((time.time() - retrieval_start) * 1000)
