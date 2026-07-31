@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { createUser, listUsers, deleteUser } from "../services/api"
+import {
+  createUser,
+  listUsers,
+  deleteUser,
+  listDepartments,
+  createDepartment,
+  assignUserDepartments,
+} from "../services/api"
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth()
@@ -10,6 +17,11 @@ export default function UserManagement() {
   const [users, setUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [listError, setListError] = useState("")
+
+  const [departments, setDepartments] = useState([])
+  const [newDepartmentName, setNewDepartmentName] = useState("")
+  const [creatingDepartment, setCreatingDepartment] = useState(false)
+  const [departmentError, setDepartmentError] = useState("")
 
   const [form, setForm] = useState({
     full_name: "",
@@ -22,6 +34,7 @@ export default function UserManagement() {
   const [creating, setCreating] = useState(false)
 
   const [deletingId, setDeletingId] = useState(null)
+  const [savingDepartmentsFor, setSavingDepartmentsFor] = useState(null)
 
   const fetchUsers = async () => {
     setLoadingUsers(true)
@@ -36,8 +49,18 @@ export default function UserManagement() {
     }
   }
 
+  const fetchDepartments = async () => {
+    try {
+      const res = await listDepartments()
+      setDepartments(res.data)
+    } catch (err) {
+      setDepartmentError(err.response?.data?.detail || "Failed to load departments.")
+    }
+  }
+
   useEffect(() => {
     fetchUsers()
+    fetchDepartments()
   }, [])
 
   const handleChange = (e) => {
@@ -73,6 +96,43 @@ export default function UserManagement() {
       setListError(err.response?.data?.detail || "Failed to delete user.")
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  const handleCreateDepartment = async (e) => {
+    e.preventDefault()
+    if (!newDepartmentName.trim()) return
+
+    setDepartmentError("")
+    setCreatingDepartment(true)
+
+    try {
+      await createDepartment(newDepartmentName.trim())
+      setNewDepartmentName("")
+      fetchDepartments()
+    } catch (err) {
+      setDepartmentError(err.response?.data?.detail || "Failed to create department.")
+    } finally {
+      setCreatingDepartment(false)
+    }
+  }
+
+  const toggleUserDepartment = async (targetUser, departmentId) => {
+    const currentIds = targetUser.departments.map((d) => d.id)
+    const nextIds = currentIds.includes(departmentId)
+      ? currentIds.filter((id) => id !== departmentId)
+      : [...currentIds, departmentId]
+
+    setSavingDepartmentsFor(targetUser.id)
+    try {
+      const res = await assignUserDepartments(targetUser.id, nextIds)
+      setUsers(
+        users.map((u) => (u.id === targetUser.id ? { ...u, departments: res.data } : u))
+      )
+    } catch (err) {
+      setListError(err.response?.data?.detail || "Failed to update department access.")
+    } finally {
+      setSavingDepartmentsFor(null)
     }
   }
 
@@ -177,6 +237,52 @@ export default function UserManagement() {
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+          <h2 className="text-white text-sm font-semibold mb-4">Departments</h2>
+          <p className="text-slate-500 text-xs mb-4">
+            Departments control which category-tagged documents HR and Employee accounts can see.
+            Admins always see every document regardless of department.
+          </p>
+
+          <form onSubmit={handleCreateDepartment} className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newDepartmentName}
+              onChange={(e) => setNewDepartmentName(e.target.value)}
+              placeholder="e.g. Finance"
+              className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={creatingDepartment || !newDepartmentName.trim()}
+              className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+            >
+              {creatingDepartment ? "Adding..." : "Add"}
+            </button>
+          </form>
+
+          {departmentError && (
+            <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2 mb-3">
+              {departmentError}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {departments.length === 0 ? (
+              <p className="text-slate-600 text-sm">No departments created yet.</p>
+            ) : (
+              departments.map((dept) => (
+                <span
+                  key={dept.id}
+                  className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded text-xs"
+                >
+                  {dept.name}
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
           <h2 className="text-white text-sm font-semibold mb-4">All Users</h2>
 
           {listError && (
@@ -196,12 +302,13 @@ export default function UserManagement() {
                     <th className="pb-3 pr-4">Email</th>
                     <th className="pb-3 pr-4">Role</th>
                     <th className="pb-3 pr-4">Status</th>
+                    <th className="pb-3 pr-4">Departments</th>
                     <th className="pb-3"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr key={u.id} className="border-b border-slate-800/60">
+                    <tr key={u.id} className="border-b border-slate-800/60 align-top">
                       <td className="py-3 pr-4 text-white">{u.full_name}</td>
                       <td className="py-3 pr-4 text-slate-400">{u.email}</td>
                       <td className="py-3 pr-4">
@@ -211,6 +318,34 @@ export default function UserManagement() {
                       </td>
                       <td className="py-3 pr-4 text-slate-400">
                         {u.is_active ? "Active" : "Inactive"}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {u.role === "admin" ? (
+                          <span className="text-slate-600 text-xs">All (Admin)</span>
+                        ) : departments.length === 0 ? (
+                          <span className="text-slate-600 text-xs">No departments yet</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {departments.map((dept) => {
+                              const assigned = u.departments.some((d) => d.id === dept.id)
+                              return (
+                                <button
+                                  key={dept.id}
+                                  type="button"
+                                  disabled={savingDepartmentsFor === u.id}
+                                  onClick={() => toggleUserDepartment(u, dept.id)}
+                                  className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-50 ${
+                                    assigned
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-slate-800 text-slate-500 hover:text-slate-300"
+                                  }`}
+                                >
+                                  {dept.name}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 text-right">
                         {u.id !== currentUser?.id && (
