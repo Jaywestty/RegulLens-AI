@@ -1,6 +1,7 @@
 // src/pages/Documents.jsx
 
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { uploadDocument, listDocuments, listDepartments } from "../services/api"
 import Navbar from "../components/Navbar"
 
@@ -13,6 +14,8 @@ export default function Documents() {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const [isDragging, setIsDragging] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchDocuments()
@@ -35,6 +38,28 @@ export default function Documents() {
     } catch {
       setError("Could not load documents.")
     }
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const dropped = e.dataTransfer.files?.[0]
+    if (dropped) setFile(dropped)
+  }
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return ""
+    const mb = bytes / (1024 * 1024)
+    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
   }
 
   const handleUpload = async (e) => {
@@ -65,89 +90,159 @@ export default function Documents() {
     }
   }
 
-  const statusColor = (status) => {
-    if (status === "ready") return "text-green-400 bg-green-400/10"
-    if (status === "processing") return "text-yellow-400 bg-yellow-400/10"
-    return "text-red-400 bg-red-400/10"
+  const statusStyle = (status) => {
+    if (status === "ready") return { color: "#146666", backgroundColor: "#E3F5F5" }
+    if (status === "processing") return { color: "#92400E", backgroundColor: "#FEF3C7" }
+    return { color: "#991B1B", backgroundColor: "#FEE2E2" }
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 py-12">
-        <div className="mb-10">
-          <h1 className="text-white text-2xl font-semibold">Documents</h1>
-          <p className="text-slate-400 text-sm mt-1">
+      <main className="max-w-3xl mx-auto px-4 py-10 lg:py-14">
+
+        <button
+          onClick={() => navigate("/query")}
+          aria-label="Back to ask a question"
+          className="back-btn mb-6"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+
+        <div className="mb-8">
+          <h1 className="font-display text-2xl font-bold" style={{ color: "var(--color-ink)" }}>
+            Documents
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--color-muted)" }}>
             Upload and manage company policy documents.
           </p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 mb-8">
-          <h2 className="text-white text-sm font-medium mb-4">Upload a document</h2>
+        <div
+          className="rounded-2xl p-6 mb-10"
+          style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-border)" }}
+        >
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
+            Upload a document
+          </h2>
 
-          <form onSubmit={handleUpload} className="space-y-4">
-            <div>
-              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-                File (PDF or DOCX)
-              </label>
+          <form onSubmit={handleUpload} className="space-y-5">
+
+            <label
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className="flex flex-col items-center justify-center text-center rounded-2xl py-10 px-4 cursor-pointer transition-colors"
+              style={{
+                border: `1.5px dashed ${isDragging ? "var(--color-primary)" : "var(--color-border)"}`,
+                backgroundColor: isDragging ? "var(--color-surface)" : "#FAFEFE",
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
+                style={{ backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              </div>
+              <p className="text-sm" style={{ color: "var(--color-ink)" }}>
+                <span className="font-semibold" style={{ color: "var(--color-primary)" }}>
+                  Drag &amp; drop
+                </span>{" "}
+                or click to browse
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--color-muted)" }}>
+                PDF or DOCX, up to 50 MB
+              </p>
               <input
                 type="file"
                 accept=".pdf,.docx"
                 onChange={(e) => setFile(e.target.files[0])}
-                className="w-full text-slate-400 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-800 file:text-slate-300 file:text-sm hover:file:bg-slate-700 file:cursor-pointer"
+                className="hidden"
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-                Visibility
-              </label>
-              <select
-                value={visibility}
-                onChange={(e) => setVisibility(e.target.value)}
-                className="bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+            {file && (
+              <div
+                className="flex items-center justify-between rounded-xl px-4 py-3"
+                style={{ backgroundColor: "var(--color-surface)" }}
               >
-                <option value="all">All employees</option>
-                <option value="hr_only">HR and Admin only</option>
-                <option value="admin_only">Admin only</option>
-              </select>
-            </div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span className="text-sm truncate" style={{ color: "var(--color-ink)" }}>
+                    {file.name}
+                  </span>
+                  <span className="text-xs flex-shrink-0" style={{ color: "var(--color-muted)" }}>
+                    {formatFileSize(file.size)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFile(null)}
+                  aria-label="Remove file"
+                  className="flex-shrink-0 text-lg leading-none px-1"
+                  style={{ color: "var(--color-muted)" }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
 
-            <div>
-              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-                Department
-              </label>
-              <select
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                className="bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-              >
-                <option value="">General (no department restriction)</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="field-label">Visibility</label>
+                <select
+                  value={visibility}
+                  onChange={(e) => setVisibility(e.target.value)}
+                  className="field-input"
+                >
+                  <option value="all">All employees</option>
+                  <option value="hr_only">HR and Admin only</option>
+                  <option value="admin_only">Admin only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="field-label">Department</label>
+                <select
+                  value={departmentId}
+                  onChange={(e) => setDepartmentId(e.target.value)}
+                  className="field-input"
+                >
+                  <option value="">General (no restriction)</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {message && (
-              <p className="text-green-400 text-xs bg-green-400/10 border border-green-400/20 rounded-lg px-3 py-2">
+              <p
+                className="text-xs rounded-lg px-3 py-2"
+                style={{ color: "#146666", backgroundColor: "#E3F5F5", border: "1px solid #A7D8D8" }}
+              >
                 {message}
               </p>
             )}
 
-            {error && (
-              <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
+            {error && <p className="error-banner">{error}</p>}
 
             <button
               type="submit"
               disabled={uploading || !file}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+              className="btn-primary sm:w-auto sm:px-8"
             >
               {uploading ? "Uploading..." : "Upload document"}
             </button>
@@ -155,28 +250,36 @@ export default function Documents() {
         </div>
 
         <div>
-          <h2 className="text-white text-sm font-medium mb-4">
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
             Indexed documents ({documents.length})
           </h2>
 
           {documents.length === 0 ? (
-            <p className="text-slate-600 text-sm">No documents uploaded yet.</p>
+            <p className="text-sm" style={{ color: "var(--color-muted)" }}>
+              No documents uploaded yet.
+            </p>
           ) : (
             <div className="space-y-2">
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-lg"
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl"
+                  style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-border)" }}
                 >
-                  <div>
-                    <p className="text-slate-200 text-sm font-medium">{doc.filename}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--color-ink)" }}>
+                      {doc.filename}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
                       {doc.chunk_count} chunks · {doc.visibility}
                       {doc.department_id &&
                         ` · ${departments.find((d) => d.id === doc.department_id)?.name || "Unknown department"}`}
                     </p>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColor(doc.status)}`}>
+                  <span
+                    className="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-medium"
+                    style={statusStyle(doc.status)}
+                  >
                     {doc.status}
                   </span>
                 </div>
