@@ -99,9 +99,9 @@ export default function Login() {
         </form>
 
         <p className="text-center text-slate-500 text-xs mt-6">
-            Don't have an account?{" "}
-          <Link to="/register" className="text-blue-400 hover:text-blue-300 transition-colors">
-            Create one
+          Don't have an account?{" "}
+          <Link to="/signup" className="text-blue-400 hover:text-blue-300 transition-colors">
+            Create your organization
           </Link>
         </p>
 
