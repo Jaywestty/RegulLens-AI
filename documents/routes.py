@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from loguru import logger
 
 from app.database import get_db
-from auth.models import User
+from auth.models import User, Department
 from auth.routes import require_hr_or_admin
 from typing import Optional
 from documents.models import Document, DocumentStatus, DocumentVisibility
@@ -25,6 +25,7 @@ ALLOWED_EXTENSIONS = {"pdf", "docx"}
 async def upload_document(
     file: UploadFile = File(...),
     visibility: DocumentVisibility = Form(DocumentVisibility.ALL),
+    department_id: Optional[int] = Form(None),
     replaces_document_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_hr_or_admin),
@@ -38,6 +39,15 @@ async def upload_document(
             status_code=400,
             detail=f"Only PDF and DOCX files are supported. Got: .{extension}"
         )
+    
+    if department_id is not None:
+        department = (
+            db.query(Department)
+            .filter(Department.id == department_id, Department.organization_id == current_user.organization_id)
+            .first()
+        )
+        if department is None:
+            raise HTTPException(status_code=404, detail="Department not found")
 
     previous_doc = None
     new_version = 1
@@ -75,6 +85,7 @@ async def upload_document(
         visibility=visibility,
         uploaded_by=current_user.id,
         organization_id=current_user.organization_id,
+        department_id=department_id,
         version=new_version,
         previous_version_id=previous_doc.id if previous_doc else None,
     )
@@ -94,6 +105,7 @@ async def upload_document(
             {
                 "document_id": doc.id,
                 "organization_id": current_user.organization_id,
+                "department_id": department_id,
                 "filename": file.filename,
                 "page_number": chunk["page_number"],
                 "chunk_id": chunk["chunk_id"],
@@ -165,6 +177,7 @@ def list_documents(
             "filename": d.filename,
             "status": d.status,
             "visibility": d.visibility,
+            "department_id": d.department_id,
             "chunk_count": d.chunk_count,
             "version": d.version,
             "previous_version_id": d.previous_version_id,
