@@ -1,6 +1,7 @@
 # app/auth/routes.py
 import re
 from auth.models import User, UserRole, Organization, Department
+from audit.service import log_audit_event
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -157,6 +158,18 @@ def create_user(
         user.departments = departments
 
     db.add(user)
+    db.flush()
+
+    log_audit_event(
+        db,
+        organization_id=current_user.organization_id,
+        actor_user_id=current_user.id,
+        action="user.created",
+        target_type="user",
+        target_id=user.id,
+        details={"email": user.email, "role": user.role.value},
+    )
+
     db.commit()
     db.refresh(user)
     return user
@@ -192,6 +205,16 @@ def delete_user(
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
+    log_audit_event(
+        db,
+        organization_id=current_user.organization_id,
+        actor_user_id=current_user.id,
+        action="user.deleted",
+        target_type="user",
+        target_id=target.id,
+        details={"email": target.email},
+    )
+
     db.delete(target)
     db.commit()
     return None
@@ -221,6 +244,18 @@ def signup_organization(request: OrganizationSignupRequest, db: Session = Depend
         organization_id=organization.id,
     )
     db.add(admin)
+    db.flush()
+
+    log_audit_event(
+        db,
+        organization_id=organization.id,
+        actor_user_id=admin.id,
+        action="organization.created",
+        target_type="organization",
+        target_id=organization.id,
+        details={"organization_name": organization.name},
+    )
+
     db.commit()
     db.refresh(organization)
     db.refresh(admin)
@@ -254,6 +289,16 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
+
+    log_audit_event(
+        db,
+        organization_id=user.organization_id,
+        actor_user_id=user.id,
+        action="user.login",
+        target_type="user",
+        target_id=user.id,
+    )
+    db.commit()
 
     token = create_access_token(
         data={"sub": user.email, "role": user.role.value, "org_id": user.organization_id}
