@@ -43,7 +43,14 @@ async def upload_document(
     new_version = 1
 
     if replaces_document_id is not None:
-        previous_doc = db.query(Document).filter(Document.id == replaces_document_id).first()
+        previous_doc = (
+            db.query(Document)
+            .filter(
+                Document.id == replaces_document_id,
+                Document.organization_id == current_user.organization_id,
+            )
+            .first()
+        )
         if previous_doc is None:
             raise HTTPException(
                 status_code=404,
@@ -67,6 +74,7 @@ async def upload_document(
         status=DocumentStatus.PROCESSING,
         visibility=visibility,
         uploaded_by=current_user.id,
+        organization_id=current_user.organization_id,
         version=new_version,
         previous_version_id=previous_doc.id if previous_doc else None,
     )
@@ -85,6 +93,7 @@ async def upload_document(
         os_chunks = [
             {
                 "document_id": doc.id,
+                "organization_id": current_user.organization_id,
                 "filename": file.filename,
                 "page_number": chunk["page_number"],
                 "chunk_id": chunk["chunk_id"],
@@ -145,7 +154,7 @@ def list_documents(
     only the current, searchable set. Pass include_superseded=true to see
     the full version history.
     """
-    query = db.query(Document)
+    query = db.query(Document).filter(Document.organization_id == current_user.organization_id)
     if not include_superseded:
         query = query.filter(Document.status != DocumentStatus.SUPERSEDED)
 
