@@ -39,9 +39,10 @@ def create_index():
         },
         "mappings": {
             "properties": {
-                "text":        {"type": "text"},
-                "document_id": {"type": "integer"},
-                "filename":    {"type": "keyword"},
+                "text":            {"type": "text"},
+                "document_id":     {"type": "integer"},
+                "organization_id": {"type": "integer"},
+                "filename":        {"type": "keyword"},
                 "page_number": {"type": "integer"},
                 "chunk_id":    {"type": "integer"},
                 "visibility":  {"type": "keyword"},
