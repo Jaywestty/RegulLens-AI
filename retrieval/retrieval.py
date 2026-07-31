@@ -24,7 +24,13 @@ def get_allowed_visibility(role: UserRole) -> List[str]:
         return ["all"]
 
 
-def hybrid_search(query: str, user_role: UserRole, organization_id: int, top_k: int = 5) -> List[Dict]:
+def hybrid_search(
+    query: str,
+    user_role: UserRole,
+    organization_id: int,
+    department_ids: List[int],
+    top_k: int = 5,
+) -> List[Dict]:
     """
     Runs a hybrid search combining BM25 and vector similarity.
 
@@ -49,6 +55,21 @@ def hybrid_search(query: str, user_role: UserRole, organization_id: int, top_k: 
     allowed_visibility = get_allowed_visibility(user_role)
     query_vector = embed_text(query)
 
+    # Admins bypass department restrictions entirely. HR and Employees only
+    # see documents with no department (general) or a department they're
+    # explicitly assigned to.
+    department_filter = None
+    if user_role != UserRole.ADMIN:
+        department_filter = {
+            "bool": {
+                "should": [
+                    {"bool": {"must_not": {"exists": {"field": "department_id"}}}},
+                    {"terms": {"department_id": department_ids}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+
     # Retrieve a wider candidate pool than we actually need. The re-ranker
     # is more accurate than raw hybrid scoring but too slow to run over
     # the whole index, so OpenSearch narrows the field first and the
@@ -63,6 +84,7 @@ def hybrid_search(query: str, user_role: UserRole, organization_id: int, top_k: 
                 "must": [
                     {"terms": {"visibility": allowed_visibility}},
                     {"term": {"organization_id": organization_id}},
+                    *([department_filter] if department_filter else []),
                 ],
                 # 'should' = scored conditions. Higher score = more relevant.
                 "should": [
