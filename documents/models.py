@@ -37,6 +37,7 @@ class Document(Base):
     visibility = Column(Enum(DocumentVisibility), default=DocumentVisibility.ALL)
     # ForeignKey links to the users table — tracks who uploaded this
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     chunk_count = Column(Integer, default=0)
 
     # version starts at 1 and increments each time this document is replaced.
@@ -61,6 +62,7 @@ class Conversation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     title = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -77,6 +79,7 @@ class QueryLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=True)
     turn_number = Column(Integer, nullable=False, default=1)
     query_text = Column(String, nullable=False)
