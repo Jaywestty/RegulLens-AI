@@ -7,7 +7,8 @@ import Login from "./pages/Login"
 import Query from "./pages/Query"
 import Documents from "./pages/Documents"
 import Dashboard from "./pages/Dashboard"
-import Register from "./pages/Register"
+import UserManagement from "./pages/UserManagement"
+import OrganizationSignup from "./pages/OrganizationSignup"
 
 export default function App() {
   return (
@@ -15,7 +16,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/signup" element={<OrganizationSignup />} />
 
           <Route
             path="/query"
@@ -33,6 +34,15 @@ export default function App() {
                 <Documents />
               </ProtectedRoute>
             }
+          />
+
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute allowedRoles={["hr", "admin"]}>
+                <UserManagement />
+              </ProtectedRoute>
+        }
           />
 
           <Route
