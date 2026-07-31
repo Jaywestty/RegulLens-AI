@@ -74,6 +74,7 @@ def query(
             .filter(
                 Conversation.id == request.conversation_id,
                 Conversation.user_id == current_user.id,
+                Conversation.organization_id == current_user.organization_id,
             )
             .first()
         )
@@ -82,12 +83,20 @@ def query(
                 f"Invalid conversation_id | user={current_user.email} | "
                 f"conversation_id={request.conversation_id}"
             )
-            conversation = Conversation(user_id=current_user.id, title=request.question[:80])
+            conversation = Conversation(
+                user_id=current_user.id,
+                organization_id=current_user.organization_id,
+                title=request.question[:80],
+            )
             db.add(conversation)
             db.commit()
             db.refresh(conversation)
     else:
-        conversation = Conversation(user_id=current_user.id, title=request.question[:80])
+        conversation = Conversation(
+                user_id=current_user.id,
+                organization_id=current_user.organization_id,
+                title=request.question[:80],
+            )
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
@@ -110,6 +119,7 @@ def query(
     chunks = hybrid_search(
         query=request.question,
         user_role=current_user.role,
+        organization_id=current_user.organization_id,
         top_k=5,
     )
     retrieval_ms = int((time.time() - retrieval_start) * 1000)
@@ -154,6 +164,7 @@ def query(
     # ── Log to database ───────────────────────────────────────────────────
     log = QueryLog(
         user_id=current_user.id,
+        organization_id=current_user.organization_id,
         conversation_id=conversation.id,
         turn_number=turn_number,
         query_text=request.question,
