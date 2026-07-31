@@ -42,6 +42,7 @@ def create_index():
                 "text":            {"type": "text"},
                 "document_id":     {"type": "integer"},
                 "organization_id": {"type": "integer"},
+                "department_id":   {"type": "integer"},
                 "filename":        {"type": "keyword"},
                 "page_number": {"type": "integer"},
                 "chunk_id":    {"type": "integer"},
