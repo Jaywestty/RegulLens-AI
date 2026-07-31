@@ -1,5 +1,6 @@
 # app/auth/routes.py
-
+import re
+from auth.models import User, UserRole, Organization
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -8,6 +9,12 @@ from pydantic import BaseModel, EmailStr
 from app.database import get_db
 from auth.models import User, UserRole
 from auth.utils import hash_password, verify_password, create_access_token, decode_token
+from typing import List
+
+def slugify(value: str) -> str:
+    value = value.lower().strip()
+    value = re.sub(r"[^a-z0-9]+", "-", value)
+    return value.strip("-") or "organization"
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -20,8 +27,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # These define the exact shape of data coming IN and going OUT of our endpoints.
 # Pydantic validates them automatically — wrong data = automatic 422 error.
 
-class RegisterRequest(BaseModel):
-    email: EmailStr        # EmailStr validates it's a real email format
+class CreateUserRequest(BaseModel):
+    email: EmailStr
     full_name: str
     password: str
     role: UserRole = UserRole.EMPLOYEE
@@ -37,12 +44,23 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     role: UserRole
+    is_active: bool
 
     class Config:
-        # Allows Pydantic to read from SQLAlchemy model attributes
-        # Without this, Pydantic can't convert your database object to JSON
         from_attributes = True
 
+class OrganizationSignupRequest(BaseModel):
+    organization_name: str
+    admin_full_name: str
+    admin_email: EmailStr
+    admin_password: str
+
+
+class OrganizationSignupResponse(BaseModel):
+    organization_id: int
+    organization_name: str
+    access_token: str
+    token_type: str = "bearer"
 
 # ── Reusable Dependencies ────────────────────────────────────────────────────
 # These are functions that FastAPI injects into routes automatically.
@@ -97,15 +115,12 @@ def require_hr_or_admin(current_user: User = Depends(get_current_user)) -> User:
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 
-@router.post("/register", response_model=UserResponse, status_code=201)
-def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    """
-    Creates a new user account.
-    
-    Note: In a real enterprise system, registration would be invite-only.
-    For this portfolio project, it's open so you can create test users easily.
-    """
-    # Check if email is already taken
+@router.post("/users", response_model=UserResponse, status_code=201)
+def create_user(
+    request: CreateUserRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_or_admin),
+):
     existing = db.query(User).filter(User.email == request.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -115,12 +130,86 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         full_name=request.full_name,
         hashed_password=hash_password(request.password),
         role=request.role,
+        organization_id=current_user.organization_id,
     )
     db.add(user)
     db.commit()
-    db.refresh(user)   # Refreshes the object so 'id' and 'created_at' are populated
+    db.refresh(user)
     return user
 
+
+@router.get("/users", response_model=List[UserResponse])
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_or_admin),
+):
+    return (
+        db.query(User)
+        .filter(User.organization_id == current_user.organization_id)
+        .order_by(User.id)
+        .all()
+    )
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_or_admin),
+):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    target = (
+        db.query(User)
+        .filter(User.id == user_id, User.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.delete(target)
+    db.commit()
+    return None
+
+@router.post("/organizations/signup", response_model=OrganizationSignupResponse, status_code=201)
+def signup_organization(request: OrganizationSignupRequest, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == request.admin_email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    base_slug = slugify(request.organization_name)
+    slug = base_slug
+    suffix = 1
+    while db.query(Organization).filter(Organization.slug == slug).first():
+        suffix += 1
+        slug = f"{base_slug}-{suffix}"
+
+    organization = Organization(name=request.organization_name, slug=slug)
+    db.add(organization)
+    db.flush()
+
+    admin = User(
+        email=request.admin_email,
+        full_name=request.admin_full_name,
+        hashed_password=hash_password(request.admin_password),
+        role=UserRole.ADMIN,
+        organization_id=organization.id,
+    )
+    db.add(admin)
+    db.commit()
+    db.refresh(organization)
+    db.refresh(admin)
+
+    token = create_access_token(
+        data={"sub": admin.email, "role": admin.role.value, "org_id": admin.organization_id}
+    )
+    return {
+        "organization_id": organization.id,
+        "organization_name": organization.name,
+        "access_token": token,
+        "token_type": "bearer",
+    }
 
 @router.post("/login", response_model=TokenResponse)
 def login(
@@ -142,7 +231,9 @@ def login(
             detail="Incorrect email or password",
         )
 
-    token = create_access_token(data={"sub": user.email, "role": user.role.value})
+    token = create_access_token(
+        data={"sub": user.email, "role": user.role.value, "org_id": user.organization_id}
+    )
     return {"access_token": token, "token_type": "bearer"}
 
 
