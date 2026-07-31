@@ -7,6 +7,7 @@ from app.database import get_db
 from auth.models import User, Department
 from auth.routes import require_hr_or_admin
 from documents.models import Document
+from audit.service import log_audit_event
 
 router = APIRouter(prefix="/departments", tags=["Departments"])
 
@@ -56,6 +57,18 @@ def create_department(
 
     department = Department(name=request.name, organization_id=current_user.organization_id)
     db.add(department)
+    db.flush()
+
+    log_audit_event(
+        db,
+        organization_id=current_user.organization_id,
+        actor_user_id=current_user.id,
+        action="department.created",
+        target_type="department",
+        target_id=department.id,
+        details={"name": department.name},
+    )
+
     db.commit()
     db.refresh(department)
     return department
@@ -100,7 +113,23 @@ def assign_user_departments(
     if len(departments) != len(set(request.department_ids)):
         raise HTTPException(status_code=400, detail="One or more departments not found")
 
+    previous_names = [d.name for d in target.departments]
     target.departments = departments
+
+    log_audit_event(
+        db,
+        organization_id=current_user.organization_id,
+        actor_user_id=current_user.id,
+        action="department.assignment_changed",
+        target_type="user",
+        target_id=target.id,
+        details={
+            "user_email": target.email,
+            "previous_departments": previous_names,
+            "new_departments": [d.name for d in departments],
+        },
+    )
+
     db.commit()
     db.refresh(target)
     return target.departments
@@ -132,7 +161,19 @@ def rename_department(
     if duplicate:
         raise HTTPException(status_code=400, detail="A department with this name already exists")
 
+    old_name = department.name
     department.name = request.name
+
+    log_audit_event(
+        db,
+        organization_id=current_user.organization_id,
+        actor_user_id=current_user.id,
+        action="department.renamed",
+        target_type="department",
+        target_id=department.id,
+        details={"old_name": old_name, "new_name": department.name},
+    )
+
     db.commit()
     db.refresh(department)
     return department
@@ -196,6 +237,16 @@ def delete_department(
                 "user_emails": usage.user_emails,
             },
         )
+
+    log_audit_event(
+        db,
+        organization_id=current_user.organization_id,
+        actor_user_id=current_user.id,
+        action="department.deleted",
+        target_type="department",
+        target_id=department.id,
+        details={"name": department.name},
+    )
 
     db.delete(department)
     db.commit()
