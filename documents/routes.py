@@ -8,6 +8,7 @@ from loguru import logger
 
 from app.database import get_db
 from auth.models import User, Department
+from audit.service import log_audit_event
 from auth.routes import require_hr_or_admin
 from typing import Optional
 from documents.models import Document, DocumentStatus, DocumentVisibility
@@ -121,6 +122,17 @@ async def upload_document(
 
         doc.status = DocumentStatus.READY
         doc.chunk_count = len(chunks)
+
+        log_audit_event(
+            db,
+            organization_id=current_user.organization_id,
+            actor_user_id=current_user.id,
+            action="document.uploaded",
+            target_type="document",
+            target_id=doc.id,
+            details={"filename": doc.filename, "visibility": visibility.value, "department_id": department_id},
+        )
+
         db.commit()
 
         if previous_doc is not None:
