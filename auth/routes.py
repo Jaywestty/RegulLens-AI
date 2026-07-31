@@ -1,6 +1,6 @@
 # app/auth/routes.py
 import re
-from auth.models import User, UserRole, Organization
+from auth.models import User, UserRole, Organization, Department
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -32,6 +32,7 @@ class CreateUserRequest(BaseModel):
     full_name: str
     password: str
     role: UserRole = UserRole.EMPLOYEE
+    department_ids: List[int] = []
 
 
 class TokenResponse(BaseModel):
@@ -141,6 +142,20 @@ def create_user(
         role=request.role,
         organization_id=current_user.organization_id,
     )
+
+    if request.department_ids:
+        departments = (
+            db.query(Department)
+            .filter(
+                Department.id.in_(request.department_ids),
+                Department.organization_id == current_user.organization_id,
+            )
+            .all()
+        )
+        if len(departments) != len(set(request.department_ids)):
+            raise HTTPException(status_code=400, detail="One or more departments not found")
+        user.departments = departments
+
     db.add(user)
     db.commit()
     db.refresh(user)
