@@ -1,6 +1,7 @@
 // src/pages/UserManagement.jsx
 
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import {
   createUser,
@@ -13,8 +14,47 @@ import {
   deleteDepartment,
 } from "../services/api"
 
+function Panel({ title, description, children }) {
+  return (
+    <div
+      className="rounded-2xl p-5 sm:p-6"
+      style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-border)" }}
+    >
+      <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--color-ink)" }}>
+        {title}
+      </h2>
+      {description && (
+        <p className="text-xs mb-4" style={{ color: "var(--color-muted)" }}>
+          {description}
+        </p>
+      )}
+      {!description && <div className="mb-4" />}
+      {children}
+    </div>
+  )
+}
+
+function Chip({ selected, onClick, children, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="text-xs px-2.5 py-1 rounded-full transition-colors disabled:opacity-50"
+      style={{
+        backgroundColor: selected ? "var(--color-primary)" : "var(--color-surface)",
+        color: selected ? "#FFFFFF" : "var(--color-muted)",
+        border: selected ? "1px solid var(--color-primary)" : "1px solid var(--color-border)",
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function UserManagement() {
   const { user: currentUser } = useAuth()
+  const navigate = useNavigate()
 
   const [users, setUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(true)
@@ -200,76 +240,98 @@ export default function UserManagement() {
     }
   }
 
+  const renderDepartmentChips = (targetUser) => {
+    if (targetUser.role === "admin") {
+      return <span className="text-xs" style={{ color: "var(--color-muted)" }}>All (Admin)</span>
+    }
+    if (departments.length === 0) {
+      return <span className="text-xs" style={{ color: "var(--color-muted)" }}>No departments yet</span>
+    }
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {departments.map((dept) => {
+          const assigned = targetUser.departments.some((d) => d.id === dept.id)
+          return (
+            <Chip
+              key={dept.id}
+              selected={assigned}
+              disabled={savingDepartmentsFor === targetUser.id}
+              onClick={() => toggleUserDepartment(targetUser, dept.id)}
+            >
+              {dept.name}
+            </Chip>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10">
-      <div className="max-w-4xl mx-auto space-y-10">
+    <div className="min-h-screen bg-white px-4 sm:px-6 py-10 lg:py-14">
+      <div className="max-w-4xl mx-auto space-y-8">
 
         <div>
-          <h1 className="text-white text-xl font-semibold">User Management</h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <button
+            onClick={() => navigate("/query")}
+            aria-label="Back to ask a question"
+            className="back-btn mb-6"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <h1 className="font-display text-2xl font-bold" style={{ color: "var(--color-ink)" }}>
+            User management
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--color-muted)" }}>
             Create and manage employee, HR, and admin accounts.
           </p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <h2 className="text-white text-sm font-semibold mb-4">Create Account</h2>
-
+        <Panel title="Create account">
           <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-                Full Name
-              </label>
+              <label className="field-label">Full name</label>
               <input
                 type="text"
                 name="full_name"
                 value={form.full_name}
                 onChange={handleChange}
                 required
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                className="field-input"
                 placeholder="John Doe"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-                Email
-              </label>
+              <label className="field-label">Email</label>
               <input
                 type="email"
                 name="email"
                 value={form.email}
                 onChange={handleChange}
                 required
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                className="field-input"
                 placeholder="employee@company.com"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-                Temporary Password
-              </label>
+              <label className="field-label">Temporary password</label>
               <input
                 type="text"
                 name="password"
                 value={form.password}
                 onChange={handleChange}
                 required
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                className="field-input"
                 placeholder="Set a temporary password"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-                Role
-              </label>
-              <select
-                name="role"
-                value={form.role}
-                onChange={handleChange}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
-              >
+              <label className="field-label">Role</label>
+              <select name="role" value={form.role} onChange={handleChange} className="field-input">
                 <option value="employee">Employee</option>
                 <option value="hr">HR</option>
                 <option value="admin">Admin</option>
@@ -277,102 +339,83 @@ export default function UserManagement() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
-                Departments
-              </label>
+              <label className="field-label">Departments</label>
               {form.role === "admin" ? (
-                <p className="text-slate-600 text-xs">
+                <p className="text-xs" style={{ color: "var(--color-muted)" }}>
                   Admins see every document regardless of department.
                 </p>
               ) : departments.length === 0 ? (
-                <p className="text-slate-600 text-xs">
-                  No departments created yet — add one below first if this account needs restricted access.
+                <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+                  No departments created yet, add one below first if this account needs restricted access.
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
-                  {departments.map((dept) => {
-                    const selected = form.department_ids.includes(dept.id)
-                    return (
-                      <button
-                        key={dept.id}
-                        type="button"
-                        onClick={() => toggleFormDepartment(dept.id)}
-                        className={`text-xs px-2.5 py-1 rounded transition-colors ${
-                          selected
-                            ? "bg-blue-600 text-white"
-                            : "bg-slate-800 text-slate-500 hover:text-slate-300"
-                        }`}
-                      >
-                        {dept.name}
-                      </button>
-                    )
-                  })}
+                  {departments.map((dept) => (
+                    <Chip
+                      key={dept.id}
+                      selected={form.department_ids.includes(dept.id)}
+                      onClick={() => toggleFormDepartment(dept.id)}
+                    >
+                      {dept.name}
+                    </Chip>
+                  ))}
                 </div>
               )}
             </div>
 
-            {formError && (
-              <p className="sm:col-span-2 text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-                {formError}
-              </p>
-            )}
+            {formError && <p className="sm:col-span-2 error-banner">{formError}</p>}
 
             {formSuccess && (
-              <p className="sm:col-span-2 text-green-400 text-xs bg-green-400/10 border border-green-400/20 rounded-lg px-3 py-2">
+              <p
+                className="sm:col-span-2 text-xs rounded-lg px-3 py-2"
+                style={{ color: "#146666", backgroundColor: "#E3F5F5", border: "1px solid #A7D8D8" }}
+              >
                 {formSuccess}
               </p>
             )}
 
             <div className="sm:col-span-2">
-              <button
-                type="submit"
-                disabled={creating}
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors"
-              >
-                {creating ? "Creating..." : "Create Account"}
+              <button type="submit" disabled={creating} className="btn-primary sm:w-auto sm:px-8">
+                {creating ? "Creating..." : "Create account"}
               </button>
             </div>
           </form>
-        </div>
+        </Panel>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <h2 className="text-white text-sm font-semibold mb-4">Departments</h2>
-          <p className="text-slate-500 text-xs mb-4">
-            Departments control which category-tagged documents HR and Employee accounts can see.
-            Admins always see every document regardless of department.
-          </p>
-
+        <Panel
+          title="Departments"
+          description="Departments control which category-tagged documents HR and Employee accounts can see. Admins always see every document regardless of department."
+        >
           <form onSubmit={handleCreateDepartment} className="flex gap-2 mb-4">
             <input
               type="text"
               value={newDepartmentName}
               onChange={(e) => setNewDepartmentName(e.target.value)}
               placeholder="e.g. Finance"
-              className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+              className="field-input flex-1"
             />
             <button
               type="submit"
               disabled={creatingDepartment || !newDepartmentName.trim()}
-              className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+              className="btn-primary w-auto px-5 whitespace-nowrap"
             >
               {creatingDepartment ? "Adding..." : "Add"}
             </button>
           </form>
 
-          {departmentError && (
-            <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2 mb-3">
-              {departmentError}
-            </p>
-          )}
+          {departmentError && <p className="error-banner mb-3">{departmentError}</p>}
 
           <div className="space-y-2">
             {departments.length === 0 ? (
-              <p className="text-slate-600 text-sm">No departments created yet.</p>
+              <p className="text-sm" style={{ color: "var(--color-muted)" }}>
+                No departments created yet.
+              </p>
             ) : (
               departments.map((dept) => (
                 <div
                   key={dept.id}
-                  className="flex items-center justify-between bg-slate-800 rounded-lg px-3 py-2"
+                  className="flex items-center justify-between rounded-xl px-3 py-2"
+                  style={{ backgroundColor: "var(--color-surface)" }}
                 >
                   {renamingId === dept.id ? (
                     <div className="flex items-center gap-2 flex-1">
@@ -381,35 +424,42 @@ export default function UserManagement() {
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         autoFocus
-                        className="flex-1 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"
+                        className="flex-1 rounded-lg px-2 py-1 text-xs outline-none"
+                        style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-primary)", color: "var(--color-ink)" }}
                       />
                       <button
                         onClick={() => submitRename(dept.id)}
-                        className="text-xs text-blue-400 hover:text-blue-300"
+                        className="text-xs font-medium"
+                        style={{ color: "var(--color-primary)" }}
                       >
                         Save
                       </button>
                       <button
                         onClick={cancelRename}
-                        className="text-xs text-slate-500 hover:text-slate-300"
+                        className="text-xs"
+                        style={{ color: "var(--color-muted)" }}
                       >
                         Cancel
                       </button>
                     </div>
                   ) : (
                     <>
-                      <span className="text-slate-300 text-xs">{dept.name}</span>
+                      <span className="text-xs font-medium" style={{ color: "var(--color-ink)" }}>
+                        {dept.name}
+                      </span>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => startRename(dept)}
-                          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                          className="text-xs transition-colors"
+                          style={{ color: "var(--color-muted)" }}
                         >
                           Rename
                         </button>
                         <button
                           onClick={() => handleDeleteDepartment(dept)}
                           disabled={deletingDepartmentId === dept.id}
-                          className="text-xs text-slate-500 hover:text-red-400 disabled:opacity-50 transition-colors"
+                          className="text-xs transition-colors disabled:opacity-50"
+                          style={{ color: "var(--color-muted)" }}
                         >
                           {deletingDepartmentId === dept.id ? "Checking..." : "Delete"}
                         </button>
@@ -422,120 +472,168 @@ export default function UserManagement() {
           </div>
 
           {blockedDeletion && (
-            <div className="mt-4 bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-4">
-              <p className="text-yellow-400 text-xs font-medium mb-2">
-                Can't delete "{blockedDeletion.department.name}" — still in use
+            <div
+              className="mt-4 rounded-xl p-4"
+              style={{ backgroundColor: "#FEF3C7", border: "1px solid #FCD34D" }}
+            >
+              <p className="text-xs font-semibold mb-2" style={{ color: "#92400E" }}>
+                Can't delete "{blockedDeletion.department.name}", still in use
               </p>
               {blockedDeletion.document_count > 0 && (
-                <p className="text-slate-400 text-xs mb-1">
+                <p className="text-xs mb-1" style={{ color: "#78350F" }}>
                   {blockedDeletion.document_count} document(s): {blockedDeletion.document_titles.join(", ")}
                 </p>
               )}
               {blockedDeletion.user_count > 0 && (
-                <p className="text-slate-400 text-xs mb-2">
+                <p className="text-xs mb-2" style={{ color: "#78350F" }}>
                   {blockedDeletion.user_count} user(s): {blockedDeletion.user_emails.join(", ")}
                 </p>
               )}
-              <p className="text-slate-500 text-xs">
+              <p className="text-xs" style={{ color: "#92400E" }}>
                 Reassign or untag these first, then try deleting again.
               </p>
               <button
                 onClick={() => setBlockedDeletion(null)}
-                className="mt-2 text-xs text-slate-500 hover:text-slate-300"
+                className="mt-2 text-xs font-medium"
+                style={{ color: "#92400E" }}
               >
                 Dismiss
               </button>
             </div>
           )}
-        </div>
+        </Panel>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <h2 className="text-white text-sm font-semibold mb-4">All Users</h2>
-
-          {listError && (
-            <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2 mb-4">
-              {listError}
-            </p>
-          )}
+        <Panel title="All users">
+          {listError && <p className="error-banner mb-4">{listError}</p>}
 
           {loadingUsers ? (
-            <p className="text-slate-500 text-sm">Loading users...</p>
+            <p className="text-sm" style={{ color: "var(--color-muted)" }}>
+              Loading users...
+            </p>
+          ) : users.length === 0 ? (
+            <p className="text-sm text-center py-4" style={{ color: "var(--color-muted)" }}>
+              No users found.
+            </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-slate-500 text-xs uppercase tracking-wider border-b border-slate-800">
-                    <th className="pb-3 pr-4">Name</th>
-                    <th className="pb-3 pr-4">Email</th>
-                    <th className="pb-3 pr-4">Role</th>
-                    <th className="pb-3 pr-4">Status</th>
-                    <th className="pb-3 pr-4">Departments</th>
-                    <th className="pb-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id} className="border-b border-slate-800/60 align-top">
-                      <td className="py-3 pr-4 text-white">{u.full_name}</td>
-                      <td className="py-3 pr-4 text-slate-400">{u.email}</td>
-                      <td className="py-3 pr-4">
-                        <span className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded text-xs uppercase tracking-wider">
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4 text-slate-400">
-                        {u.is_active ? "Active" : "Inactive"}
-                      </td>
-                      <td className="py-3 pr-4">
-                        {u.role === "admin" ? (
-                          <span className="text-slate-600 text-xs">All (Admin)</span>
-                        ) : departments.length === 0 ? (
-                          <span className="text-slate-600 text-xs">No departments yet</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5">
-                            {departments.map((dept) => {
-                              const assigned = u.departments.some((d) => d.id === dept.id)
-                              return (
-                                <button
-                                  key={dept.id}
-                                  type="button"
-                                  disabled={savingDepartmentsFor === u.id}
-                                  onClick={() => toggleUserDepartment(u, dept.id)}
-                                  className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-50 ${
-                                    assigned
-                                      ? "bg-blue-600 text-white"
-                                      : "bg-slate-800 text-slate-500 hover:text-slate-300"
-                                  }`}
-                                >
-                                  {dept.name}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 text-right">
-                        {u.id !== currentUser?.id && (
-                          <button
-                            onClick={() => handleDelete(u.id)}
-                            disabled={deletingId === u.id}
-                            className="text-xs text-slate-400 hover:text-red-400 disabled:text-slate-600 transition-colors"
-                          >
-                            {deletingId === u.id ? "Deleting..." : "Delete"}
-                          </button>
-                        )}
-                      </td>
+            <>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr
+                      className="text-left text-xs uppercase tracking-wider"
+                      style={{ color: "var(--color-muted)", borderBottom: "1px solid var(--color-border)" }}
+                    >
+                      <th className="pb-3 pr-4">Name</th>
+                      <th className="pb-3 pr-4">Email</th>
+                      <th className="pb-3 pr-4">Role</th>
+                      <th className="pb-3 pr-4">Status</th>
+                      <th className="pb-3 pr-4">Departments</th>
+                      <th className="pb-3"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.id} className="align-top" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                        <td className="py-3 pr-4 font-medium" style={{ color: "var(--color-ink)" }}>
+                          {u.full_name}
+                        </td>
+                        <td className="py-3 pr-4" style={{ color: "var(--color-muted)" }}>
+                          {u.email}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span
+                            className="px-2 py-0.5 rounded-full text-xs uppercase tracking-wider font-medium"
+                            style={{ backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
+                          >
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span
+                            className="px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={
+                              u.is_active
+                                ? { color: "#146666", backgroundColor: "#E3F5F5" }
+                                : { color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }
+                            }
+                          >
+                            {u.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">{renderDepartmentChips(u)}</td>
+                        <td className="py-3 text-right">
+                          {u.id !== currentUser?.id && (
+                            <button
+                              onClick={() => handleDelete(u.id)}
+                              disabled={deletingId === u.id}
+                              className="text-xs transition-colors disabled:opacity-50"
+                              style={{ color: "var(--color-muted)" }}
+                            >
+                              {deletingId === u.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-              {users.length === 0 && (
-                <p className="text-slate-500 text-sm py-4 text-center">No users found.</p>
-              )}
-            </div>
+              <div className="md:hidden space-y-3">
+                {users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="rounded-xl p-4"
+                    style={{ backgroundColor: "var(--color-surface)" }}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: "var(--color-ink)" }}>
+                          {u.full_name}
+                        </p>
+                        <p className="text-xs truncate" style={{ color: "var(--color-muted)" }}>
+                          {u.email}
+                        </p>
+                      </div>
+                      {u.id !== currentUser?.id && (
+                        <button
+                          onClick={() => handleDelete(u.id)}
+                          disabled={deletingId === u.id}
+                          className="flex-shrink-0 text-xs disabled:opacity-50"
+                          style={{ color: "var(--color-muted)" }}
+                        >
+                          {deletingId === u.id ? "Deleting..." : "Delete"}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-3">
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs uppercase tracking-wider font-medium"
+                        style={{ backgroundColor: "#FFFFFF", color: "var(--color-primary)" }}
+                      >
+                        {u.role}
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-medium"
+                        style={
+                          u.is_active
+                            ? { color: "#146666", backgroundColor: "#E3F5F5" }
+                            : { color: "var(--color-muted)", backgroundColor: "#FFFFFF" }
+                        }
+                      >
+                        {u.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+
+                    <p className="field-label mb-1.5">Departments</p>
+                    {renderDepartmentChips(u)}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
-        </div>
+        </Panel>
 
       </div>
     </div>
