@@ -52,3 +52,9 @@ export const queryDocuments = (question) =>
 // ADMIN
 export const getMetrics = () => api.get("/admin/metrics")
 export const getRecentQueries = () => api.get("/admin/recent-queries")
+
+// DEPARTMENTS
+export const listDepartments = () => api.get("/departments/")
+export const createDepartment = (name) => api.post("/departments/", { name })
+export const assignUserDepartments = (userId, departmentIds) =>
+  api.put(`/departments/users/${userId}`, { department_ids: departmentIds })
