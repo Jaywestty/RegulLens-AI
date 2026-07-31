@@ -38,6 +38,7 @@ class Document(Base):
     # ForeignKey links to the users table — tracks who uploaded this
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True, index=True)
     chunk_count = Column(Integer, default=0)
 
     # version starts at 1 and increments each time this document is replaced.
