@@ -9,8 +9,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   // Still checking if user is logged in — show nothing yet
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="text-slate-400 text-sm">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-sm" style={{ color: "var(--color-muted)" }}>
+          Loading...
+        </div>
       </div>
     )
   }
