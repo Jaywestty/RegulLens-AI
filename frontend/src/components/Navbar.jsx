@@ -50,6 +50,12 @@ export default function Navbar() {
               Dashboard
             </Link>
           )}
+
+          {(user?.role === "hr" || user?.role === "admin") && (
+            <Link to="/users" className={linkClass("/users")}>
+              Manage Users
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
