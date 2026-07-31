@@ -28,6 +28,7 @@ export default function UserManagement() {
     email: "",
     password: "",
     role: "employee",
+    department_ids: [],
   })
   const [formError, setFormError] = useState("")
   const [formSuccess, setFormSuccess] = useState("")
@@ -67,6 +68,18 @@ export default function UserManagement() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
+  const toggleFormDepartment = (departmentId) => {
+    setForm((prev) => {
+      const already = prev.department_ids.includes(departmentId)
+      return {
+        ...prev,
+        department_ids: already
+          ? prev.department_ids.filter((id) => id !== departmentId)
+          : [...prev.department_ids, departmentId],
+      }
+    })
+  }
+
   const handleCreate = async (e) => {
     e.preventDefault()
     setFormError("")
@@ -76,7 +89,7 @@ export default function UserManagement() {
     try {
       await createUser(form)
       setFormSuccess(`Account created for ${form.email}`)
-      setForm({ full_name: "", email: "", password: "", role: "employee" })
+      setForm({ full_name: "", email: "", password: "", role: "employee", department_ids: [] })
       fetchUsers()
     } catch (err) {
       setFormError(err.response?.data?.detail || "Failed to create account.")
@@ -210,6 +223,41 @@ export default function UserManagement() {
                 <option value="hr">HR</option>
                 <option value="admin">Admin</option>
               </select>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-slate-400 text-xs mb-1.5 uppercase tracking-wider">
+                Departments
+              </label>
+              {form.role === "admin" ? (
+                <p className="text-slate-600 text-xs">
+                  Admins see every document regardless of department.
+                </p>
+              ) : departments.length === 0 ? (
+                <p className="text-slate-600 text-xs">
+                  No departments created yet — add one below first if this account needs restricted access.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {departments.map((dept) => {
+                    const selected = form.department_ids.includes(dept.id)
+                    return (
+                      <button
+                        key={dept.id}
+                        type="button"
+                        onClick={() => toggleFormDepartment(dept.id)}
+                        className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                          selected
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-800 text-slate-500 hover:text-slate-300"
+                        }`}
+                      >
+                        {dept.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {formError && (
