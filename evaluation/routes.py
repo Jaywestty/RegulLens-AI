@@ -15,7 +15,7 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 @router.get("/metrics")
 def get_metrics(
     db: Session = Depends(get_db),
-    _: object = Depends(require_admin),
+    current_user=Depends(require_admin),
 ):
     """
     Extended metrics dashboard.
@@ -24,13 +24,27 @@ def get_metrics(
     This lets you see at a glance if slowness is a search problem
     or a generation problem. Critical for debugging production issues.
     """
-    total_queries = db.query(func.count(QueryLog.id)).scalar() or 0
-    avg_latency = db.query(func.avg(QueryLog.latency_ms)).scalar() or 0
-    avg_retrieval = db.query(func.avg(QueryLog.retrieval_score)).scalar() or 0
+    org_id = current_user.organization_id
+
+    total_queries = (
+        db.query(func.count(QueryLog.id))
+        .filter(QueryLog.organization_id == org_id)
+        .scalar() or 0
+    )
+    avg_latency = (
+        db.query(func.avg(QueryLog.latency_ms))
+        .filter(QueryLog.organization_id == org_id)
+        .scalar() or 0
+    )
+    avg_retrieval = (
+        db.query(func.avg(QueryLog.retrieval_score))
+        .filter(QueryLog.organization_id == org_id)
+        .scalar() or 0
+    )
 
     hallucination_count = (
         db.query(func.count(QueryLog.id))
-        .filter(QueryLog.hallucination_flagged == True)
+        .filter(QueryLog.organization_id == org_id, QueryLog.hallucination_flagged == True)
         .scalar() or 0
     )
 
@@ -39,10 +53,14 @@ def get_metrics(
         if total_queries > 0 else 0.0
     )
 
-    total_docs = db.query(func.count(Document.id)).scalar() or 0
+    total_docs = (
+        db.query(func.count(Document.id))
+        .filter(Document.organization_id == org_id)
+        .scalar() or 0
+    )
     ready_docs = (
         db.query(func.count(Document.id))
-        .filter(Document.status == DocumentStatus.READY)
+        .filter(Document.organization_id == org_id, Document.status == DocumentStatus.READY)
         .scalar() or 0
     )
 
@@ -64,11 +82,12 @@ def get_metrics(
 def get_recent_queries(
     limit: int = 20,
     db: Session = Depends(get_db),
-    _: object = Depends(require_admin),
+    current_user=Depends(require_admin),
 ):
     """Returns the most recent queries for manual review."""
     logs = (
         db.query(QueryLog)
+        .filter(QueryLog.organization_id == current_user.organization_id)
         .order_by(QueryLog.created_at.desc())
         .limit(limit)
         .all()
