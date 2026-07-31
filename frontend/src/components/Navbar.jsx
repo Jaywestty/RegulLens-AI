@@ -1,77 +1,139 @@
 // src/components/Navbar.jsx
 
+import { useState } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import BrandMark from "./BrandMark"
 
 export default function Navbar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
     navigate("/login")
   }
 
-  // Helper to highlight the active nav link
+  const closeMenu = () => setMenuOpen(false)
+
   const isActive = (path) => location.pathname === path
 
   const linkClass = (path) =>
-    `text-sm px-3 py-1.5 rounded transition-colors ${
-      isActive(path)
-        ? "bg-blue-600 text-white"
-        : "text-slate-400 hover:text-white"
-    }`
+    `text-sm px-3 py-2 rounded-lg transition-colors block lg:inline`
+
+  const linkStyle = (path) => ({
+    backgroundColor: isActive(path) ? "var(--color-primary)" : "transparent",
+    color: isActive(path) ? "#FFFFFF" : "var(--color-muted)",
+  })
+
+  const navLinks = [
+    { to: "/query", label: "Ask a question", roles: null },
+    { to: "/documents", label: "Documents", roles: ["hr", "admin"] },
+    { to: "/dashboard", label: "Dashboard", roles: ["admin"] },
+    { to: "/users", label: "Manage users", roles: ["hr", "admin"] },
+  ]
+
+  const visibleLinks = navLinks.filter(
+    (link) => !link.roles || link.roles.includes(user?.role)
+  )
 
   return (
-    <nav className="bg-slate-900 border-b border-slate-800 px-6 py-4">
-      <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <nav style={{ backgroundColor: "#FFFFFF", borderBottom: "1px solid var(--color-border)" }}>
+      <div className="max-w-6xl mx-auto px-4 lg:px-6 py-3 lg:py-4">
+        <div className="flex items-center justify-between">
 
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-          <span className="text-white font-semibold text-sm tracking-wide">
-            Compliance Platform
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link to="/query" className={linkClass("/query")}>
-            Ask a Question
-          </Link>
-
-          {(user?.role === "hr" || user?.role === "admin") && (
-            <Link to="/documents" className={linkClass("/documents")}>
-              Documents
-            </Link>
-          )}
-
-          {user?.role === "admin" && (
-            <Link to="/dashboard" className={linkClass("/dashboard")}>
-              Dashboard
-            </Link>
-          )}
-
-          {(user?.role === "hr" || user?.role === "admin") && (
-            <Link to="/users" className={linkClass("/users")}>
-              Manage Users
-            </Link>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4">
-          <span className="text-slate-500 text-xs">
-            {user?.full_name}
-            <span className="ml-2 px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded text-xs uppercase tracking-wider">
-              {user?.role}
+          <div className="flex items-center gap-2">
+            <BrandMark className="w-7 h-7" />
+            <span className="font-display font-bold text-sm tracking-wide" style={{ color: "var(--color-ink)" }}>
+              Compliance Platform
             </span>
-          </span>
+          </div>
+
+          <div className="hidden lg:flex items-center gap-1">
+            {visibleLinks.map((link) => (
+              <Link key={link.to} to={link.to} className={linkClass(link.to)} style={linkStyle(link.to)}>
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="hidden lg:flex items-center gap-4">
+            <span className="text-xs" style={{ color: "var(--color-muted)" }}>
+              {user?.full_name}
+              <span
+                className="ml-2 px-2 py-0.5 rounded-full text-xs uppercase tracking-wider font-medium"
+                style={{ backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
+              >
+                {user?.role}
+              </span>
+            </span>
+            <button
+              onClick={handleLogout}
+              className="text-xs font-medium transition-colors"
+              style={{ color: "var(--color-muted)" }}
+            >
+              Sign out
+            </button>
+          </div>
+
           <button
-            onClick={handleLogout}
-            className="text-xs text-slate-400 hover:text-red-400 transition-colors"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
           >
-            Sign out
+            {menuOpen ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
           </button>
+
         </div>
+
+        {menuOpen && (
+          <div className="lg:hidden mt-3 pb-2 space-y-1" style={{ borderTop: "1px solid var(--color-border)", paddingTop: "12px" }}>
+            {visibleLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={closeMenu}
+                className={linkClass(link.to)}
+                style={linkStyle(link.to)}
+              >
+                {link.label}
+              </Link>
+            ))}
+
+            <div className="flex items-center justify-between px-3 pt-3 mt-2" style={{ borderTop: "1px solid var(--color-border)" }}>
+              <span className="text-xs" style={{ color: "var(--color-muted)" }}>
+                {user?.full_name}
+                <span
+                  className="ml-2 px-2 py-0.5 rounded-full text-xs uppercase tracking-wider font-medium"
+                  style={{ backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
+                >
+                  {user?.role}
+                </span>
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-xs font-medium"
+                style={{ color: "var(--color-muted)" }}
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     </nav>
