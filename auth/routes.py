@@ -39,12 +39,21 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class DepartmentSummary(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
 class UserResponse(BaseModel):
     id: int
     email: str
     full_name: str
     role: UserRole
     is_active: bool
+    departments: List[DepartmentSummary] = []
 
     class Config:
         from_attributes = True
