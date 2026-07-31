@@ -58,3 +58,7 @@ export const listDepartments = () => api.get("/departments/")
 export const createDepartment = (name) => api.post("/departments/", { name })
 export const assignUserDepartments = (userId, departmentIds) =>
   api.put(`/departments/users/${userId}`, { department_ids: departmentIds })
+export const renameDepartment = (departmentId, name) =>
+  api.patch(`/departments/${departmentId}`, { name })
+export const deleteDepartment = (departmentId) => api.delete(`/departments/${departmentId}`)
+export const getDepartmentUsage = (departmentId) => api.get(`/departments/${departmentId}/usage`)

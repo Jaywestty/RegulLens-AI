@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from auth.models import User, Department
 from auth.routes import require_hr_or_admin
+from documents.models import Document
 
 router = APIRouter(prefix="/departments", tags=["Departments"])
 
@@ -24,6 +25,16 @@ class DepartmentResponse(BaseModel):
 
 class AssignDepartmentsRequest(BaseModel):
     department_ids: List[int]
+
+class DepartmentRenameRequest(BaseModel):
+    name: str
+
+
+class DepartmentUsageResponse(BaseModel):
+    document_count: int
+    user_count: int
+    document_titles: List[str]
+    user_emails: List[str]
 
 
 @router.post("/", response_model=DepartmentResponse, status_code=201)
@@ -93,3 +104,99 @@ def assign_user_departments(
     db.commit()
     db.refresh(target)
     return target.departments
+
+@router.patch("/{department_id}", response_model=DepartmentResponse)
+def rename_department(
+    department_id: int,
+    request: DepartmentRenameRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_or_admin),
+):
+    department = (
+        db.query(Department)
+        .filter(Department.id == department_id, Department.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not department:
+        raise HTTPException(status_code=404, detail="Department not found")
+
+    duplicate = (
+        db.query(Department)
+        .filter(
+            Department.organization_id == current_user.organization_id,
+            Department.name == request.name,
+            Department.id != department_id,
+        )
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(status_code=400, detail="A department with this name already exists")
+
+    department.name = request.name
+    db.commit()
+    db.refresh(department)
+    return department
+
+
+def _get_department_usage(db: Session, department: Department) -> DepartmentUsageResponse:
+    documents = db.query(Document).filter(Document.department_id == department.id).all()
+    users = (
+        db.query(User)
+        .filter(User.departments.any(Department.id == department.id))
+        .all()
+    )
+    return DepartmentUsageResponse(
+        document_count=len(documents),
+        user_count=len(users),
+        document_titles=[d.filename for d in documents],
+        user_emails=[u.email for u in users],
+    )
+
+
+@router.get("/{department_id}/usage", response_model=DepartmentUsageResponse)
+def get_department_usage(
+    department_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_or_admin),
+):
+    department = (
+        db.query(Department)
+        .filter(Department.id == department_id, Department.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not department:
+        raise HTTPException(status_code=404, detail="Department not found")
+
+    return _get_department_usage(db, department)
+
+
+@router.delete("/{department_id}", status_code=204)
+def delete_department(
+    department_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_or_admin),
+):
+    department = (
+        db.query(Department)
+        .filter(Department.id == department_id, Department.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not department:
+        raise HTTPException(status_code=404, detail="Department not found")
+
+    usage = _get_department_usage(db, department)
+    if usage.document_count > 0 or usage.user_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Department is still in use and cannot be deleted",
+                "document_count": usage.document_count,
+                "user_count": usage.user_count,
+                "document_titles": usage.document_titles,
+                "user_emails": usage.user_emails,
+            },
+        )
+
+    db.delete(department)
+    db.commit()
+    return None

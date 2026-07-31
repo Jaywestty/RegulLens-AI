@@ -9,6 +9,8 @@ import {
   listDepartments,
   createDepartment,
   assignUserDepartments,
+  renameDepartment,
+  deleteDepartment,
 } from "../services/api"
 
 export default function UserManagement() {
@@ -36,6 +38,11 @@ export default function UserManagement() {
 
   const [deletingId, setDeletingId] = useState(null)
   const [savingDepartmentsFor, setSavingDepartmentsFor] = useState(null)
+
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameValue, setRenameValue] = useState("")
+  const [deletingDepartmentId, setDeletingDepartmentId] = useState(null)
+  const [blockedDeletion, setBlockedDeletion] = useState(null)
 
   const fetchUsers = async () => {
     setLoadingUsers(true)
@@ -127,6 +134,50 @@ export default function UserManagement() {
       setDepartmentError(err.response?.data?.detail || "Failed to create department.")
     } finally {
       setCreatingDepartment(false)
+    }
+  }
+
+  const startRename = (dept) => {
+    setRenamingId(dept.id)
+    setRenameValue(dept.name)
+  }
+
+  const cancelRename = () => {
+    setRenamingId(null)
+    setRenameValue("")
+  }
+
+  const submitRename = async (departmentId) => {
+    if (!renameValue.trim()) return
+
+    setDepartmentError("")
+    try {
+      await renameDepartment(departmentId, renameValue.trim())
+      cancelRename()
+      fetchDepartments()
+    } catch (err) {
+      setDepartmentError(err.response?.data?.detail || "Failed to rename department.")
+    }
+  }
+
+  const handleDeleteDepartment = async (dept) => {
+    setDepartmentError("")
+    setBlockedDeletion(null)
+    setDeletingDepartmentId(dept.id)
+
+    try {
+      await deleteDepartment(dept.id)
+      fetchDepartments()
+      fetchUsers()
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      if (err.response?.status === 409 && detail) {
+        setBlockedDeletion({ department: dept, ...detail })
+      } else {
+        setDepartmentError(detail || "Failed to delete department.")
+      }
+    } finally {
+      setDeletingDepartmentId(null)
     }
   }
 
@@ -314,20 +365,88 @@ export default function UserManagement() {
             </p>
           )}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="space-y-2">
             {departments.length === 0 ? (
               <p className="text-slate-600 text-sm">No departments created yet.</p>
             ) : (
               departments.map((dept) => (
-                <span
+                <div
                   key={dept.id}
-                  className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded text-xs"
+                  className="flex items-center justify-between bg-slate-800 rounded-lg px-3 py-2"
                 >
-                  {dept.name}
-                </span>
+                  {renamingId === dept.id ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        autoFocus
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"
+                      />
+                      <button
+                        onClick={() => submitRename(dept.id)}
+                        className="text-xs text-blue-400 hover:text-blue-300"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelRename}
+                        className="text-xs text-slate-500 hover:text-slate-300"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-slate-300 text-xs">{dept.name}</span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => startRename(dept)}
+                          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                        >
+                          Rename
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDepartment(dept)}
+                          disabled={deletingDepartmentId === dept.id}
+                          className="text-xs text-slate-500 hover:text-red-400 disabled:opacity-50 transition-colors"
+                        >
+                          {deletingDepartmentId === dept.id ? "Checking..." : "Delete"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               ))
             )}
           </div>
+
+          {blockedDeletion && (
+            <div className="mt-4 bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-4">
+              <p className="text-yellow-400 text-xs font-medium mb-2">
+                Can't delete "{blockedDeletion.department.name}" — still in use
+              </p>
+              {blockedDeletion.document_count > 0 && (
+                <p className="text-slate-400 text-xs mb-1">
+                  {blockedDeletion.document_count} document(s): {blockedDeletion.document_titles.join(", ")}
+                </p>
+              )}
+              {blockedDeletion.user_count > 0 && (
+                <p className="text-slate-400 text-xs mb-2">
+                  {blockedDeletion.user_count} user(s): {blockedDeletion.user_emails.join(", ")}
+                </p>
+              )}
+              <p className="text-slate-500 text-xs">
+                Reassign or untag these first, then try deleting again.
+              </p>
+              <button
+                onClick={() => setBlockedDeletion(null)}
+                className="mt-2 text-xs text-slate-500 hover:text-slate-300"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
