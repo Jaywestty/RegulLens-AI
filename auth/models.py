@@ -1,7 +1,8 @@
 # app/auth/models.py
 
 import enum
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey, Table
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -15,7 +16,7 @@ class Organization(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class UserRole(str, enum.Enum):
-    """
+    """User
     A fixed list of valid roles. Using an enum instead of a plain string means:
     - No typos ("Adimn" can never get into the database)
     - Your editor gives you autocomplete
@@ -27,6 +28,21 @@ class UserRole(str, enum.Enum):
     HR = "hr"
     EMPLOYEE = "employee"
 
+user_departments = Table(
+    "user_departments",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("department_id", Integer, ForeignKey("departments.id"), primary_key=True),
+)
+
+
+class Department(Base):
+    __tablename__ = "departments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class User(Base):
     """
@@ -49,6 +65,7 @@ class User(Base):
     )
     is_active = Column(Boolean, default=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    departments = relationship("Department", secondary=user_departments, backref="members")
     # server_default=func.now() means the DATABASE sets this timestamp
     # More reliable than setting it in Python (timezone consistency)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
