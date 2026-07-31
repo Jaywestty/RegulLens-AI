@@ -15,6 +15,7 @@ from evaluation.routes import router as admin_router
 from retrieval.opensearch import create_index
 from documents.storage import ensure_bucket_exists
 from fastapi.middleware.cors import CORSMiddleware
+from departments.routes import router as departments_router
 
 logger = setup_logger()
 
@@ -52,6 +53,7 @@ app.include_router(auth_router)
 app.include_router(doc_router)
 app.include_router(query_router)
 app.include_router(admin_router)
+app.include_router(departments_router)
 
 
 @app.middleware("http")
