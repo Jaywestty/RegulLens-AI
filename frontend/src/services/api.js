@@ -31,8 +31,11 @@ export const login = (email, password) => {
   return api.post("/auth/login", formData)
 }
 
-export const register = (data) => api.post("/auth/register", data)
+export const createUser = (data) => api.post("/auth/users", data)
+export const listUsers = () => api.get("/auth/users")
+export const deleteUser = (userId) => api.delete(`/auth/users/${userId}`)
 export const getMe = () => api.get("/auth/me")
+export const signupOrganization = (data) => api.post("/auth/organizations/signup", data)
 
 // DOCUMENTS
 export const uploadDocument = (formData) =>
