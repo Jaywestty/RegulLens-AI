@@ -35,6 +35,8 @@ class CreateUserRequest(BaseModel):
     role: UserRole = UserRole.EMPLOYEE
     department_ids: List[int] = []
 
+class RoleChangeRequest(BaseModel):
+    role: UserRole
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -218,6 +220,64 @@ def delete_user(
     db.delete(target)
     db.commit()
     return None
+
+
+@router.patch("/users/{user_id}/role", response_model=UserResponse)
+def change_user_role(
+    user_id: int,
+    request: RoleChangeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_or_admin),
+):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot change your own role")
+
+    target = (
+        db.query(User)
+        .filter(User.id == user_id, User.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    previous_role = target.role
+
+    if previous_role == request.role:
+        return target
+
+    if previous_role == UserRole.ADMIN and request.role != UserRole.ADMIN:
+        remaining_admins = (
+            db.query(User)
+            .filter(
+                User.organization_id == current_user.organization_id,
+                User.role == UserRole.ADMIN,
+                User.id != target.id,
+            )
+            .count()
+        )
+        if remaining_admins == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot change this user's role: they are the last remaining admin in this organization.",
+            )
+
+    target.role = request.role
+    db.flush()
+
+    log_audit_event(
+        db,
+        organization_id=current_user.organization_id,
+        actor_user_id=current_user.id,
+        action="user.role_changed",
+        target_type="user",
+        target_id=target.id,
+        details={"previous_role": previous_role.value, "new_role": request.role.value},
+    )
+
+    db.commit()
+    db.refresh(target)
+    return target
+
 
 @router.post("/organizations/signup", response_model=OrganizationSignupResponse, status_code=201)
 def signup_organization(request: OrganizationSignupRequest, db: Session = Depends(get_db)):
