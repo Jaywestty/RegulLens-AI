@@ -12,6 +12,10 @@ const SUGGESTED_QUESTIONS = [
   "What is the company's remote work policy?",
 ]
 
+const uniqueSourceFilenames = (sources) => {
+  return [...new Set(sources.map((s) => s.filename))]
+}
+
 export default function Query() {
   const [question, setQuestion] = useState("")
   const [messages, setMessages] = useState([])
@@ -21,6 +25,7 @@ export default function Query() {
   const [error, setError] = useState("")
   const [searchParams] = useSearchParams()
   const bottomRef = useRef(null)
+  const [expandedSources, setExpandedSources] = useState({})
 
   useEffect(() => {
     const existingId = searchParams.get("conversation")
@@ -35,6 +40,7 @@ export default function Query() {
           { type: "assistant", text: turn.answer_text, sources: [] },
         ])
         setMessages(loaded)
+        setExpandedSources({})
       })
       .catch(() => setError("Could not load that conversation."))
       .finally(() => setLoadingThread(false))
@@ -85,7 +91,12 @@ export default function Query() {
     setConversationId(null)
     setQuestion("")
     setError("")
+    setExpandedSources({})
   }
+
+  const toggleSources = (messageIndex) => {
+  setExpandedSources((prev) => ({ ...prev, [messageIndex]: !prev[messageIndex] }))
+}
 
   const hasThread = messages.length > 0
 
@@ -146,10 +157,54 @@ export default function Query() {
                   </p>
 
                   {msg.sources?.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {msg.sources.map((source, si) => (
-                        <CitationCard key={si} source={source} index={si + 1} />
-                      ))}
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => toggleSources(i)}
+                        className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors"
+                        style={{ color: "var(--color-primary)", backgroundColor: "var(--color-surface)" }}
+                      >
+                        {uniqueSourceFilenames(msg.sources).length}{" "}
+                        {uniqueSourceFilenames(msg.sources).length === 1 ? "source" : "sources"}
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{
+                            transform: expandedSources[i] ? "rotate(180deg)" : "rotate(0deg)",
+                            transition: "transform 0.15s",
+                          }}
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
+
+                      {!expandedSources[i] && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {uniqueSourceFilenames(msg.sources).map((filename) => (
+                            <span
+                              key={filename}
+                              className="text-xs px-2 py-1 rounded-full truncate max-w-[220px]"
+                              style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }}
+                            >
+                              {filename}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {expandedSources[i] && (
+                        <div className="mt-2 space-y-2">
+                          {msg.sources.map((source, si) => (
+                            <CitationCard key={si} source={source} index={si + 1} />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
