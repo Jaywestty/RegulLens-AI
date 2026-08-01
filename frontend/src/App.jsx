@@ -3,14 +3,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider } from "./context/AuthContext"
 import ProtectedRoute from "./components/ProtectedRoute"
+import Layout from "./components/Layout"
 import Login from "./pages/Login"
 import Query from "./pages/Query"
+import History from "./pages/History"
 import Documents from "./pages/Documents"
 import Dashboard from "./pages/Dashboard"
 import UserManagement from "./pages/UserManagement"
-import OrganizationSignup from "./pages/OrganizationSignup"
 import AuditLog from "./pages/AuditLog"
-import History from "./pages/History"
+import OrganizationSignup from "./pages/OrganizationSignup"
 
 export default function App() {
   return (
@@ -21,58 +22,51 @@ export default function App() {
           <Route path="/signup" element={<OrganizationSignup />} />
 
           <Route
-            path="/query"
             element={
               <ProtectedRoute>
-                <Query />
+                <Layout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route path="/query" element={<Query />} />
+            <Route path="/history" element={<History />} />
 
-          <Route
-            path="/history"
-            element={
-              <ProtectedRoute>
-                <History />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/documents"
+              element={
+                <ProtectedRoute allowedRoles={["hr", "admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/documents"
-            element={
-              <ProtectedRoute allowedRoles={["hr", "admin"]}>
-                <Documents />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute allowedRoles={["hr", "admin"]}>
+                  <UserManagement />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute allowedRoles={["hr", "admin"]}>
-                <UserManagement />
-              </ProtectedRoute>
-        }
-          />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/audit"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AuditLog />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/audit"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AuditLog />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
 
           <Route path="*" element={<Navigate to="/query" replace />} />
         </Routes>
