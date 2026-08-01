@@ -40,8 +40,8 @@ export const signupOrganization = (data) => api.post("/auth/organizations/signup
 
 
 // QUERY
-export const queryDocuments = (question) =>
-  api.post("/query/", { question })
+export const queryDocuments = (question, conversationId = null) =>
+  api.post("/query/", { question, conversation_id: conversationId })
 
 export const getConversations = () => api.get("/query/conversations")
 export const getConversationDetail = (conversationId) => api.get(`/query/conversations/${conversationId}`)
