@@ -116,7 +116,18 @@ export default function History() {
                         {conv.turn_count} {conv.turn_count === 1 ? "message" : "messages"} · {formatRelativeTime(conv.last_activity_at)}
                       </p>
                     </div>
-                    <svg
+                    <div className="flex-shrink-0 flex items-center gap-3">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/query?conversation=${conv.id}`)
+                        }}
+                        className="text-xs font-medium px-2.5 py-1 rounded-full transition-colors"
+                        style={{ color: "var(--color-primary)", backgroundColor: "var(--color-surface)" }}
+                      >
+                        Continue
+                      </span>
+                      <svg
                       width="16"
                       height="16"
                       viewBox="0 0 24 24"
@@ -132,7 +143,8 @@ export default function History() {
                       }}
                     >
                       <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                      </svg>
+                    </div>
                   </button>
 
                   {isExpanded && (
