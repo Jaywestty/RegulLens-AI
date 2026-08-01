@@ -43,6 +43,9 @@ export const signupOrganization = (data) => api.post("/auth/organizations/signup
 export const queryDocuments = (question) =>
   api.post("/query/", { question })
 
+export const getConversations = () => api.get("/query/conversations")
+export const getConversationDetail = (conversationId) => api.get(`/query/conversations/${conversationId}`)
+
 // ADMIN
 export const getMetrics = () => api.get("/admin/metrics")
 export const getRecentQueries = () => api.get("/admin/recent-queries")
