@@ -34,16 +34,10 @@ export const login = (email, password) => {
 export const createUser = (data) => api.post("/auth/users", data)
 export const listUsers = () => api.get("/auth/users")
 export const deleteUser = (userId) => api.delete(`/auth/users/${userId}`)
+export const changeUserRole = (userId, role) => api.patch(`/auth/users/${userId}/role`, { role })
 export const getMe = () => api.get("/auth/me")
 export const signupOrganization = (data) => api.post("/auth/organizations/signup", data)
 
-// DOCUMENTS
-export const uploadDocument = (formData) =>
-  api.post("/documents/upload", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  })
-
-export const listDocuments = () => api.get("/documents/")
 
 // QUERY
 export const queryDocuments = (question) =>
@@ -62,6 +56,15 @@ export const renameDepartment = (departmentId, name) =>
   api.patch(`/departments/${departmentId}`, { name })
 export const deleteDepartment = (departmentId) => api.delete(`/departments/${departmentId}`)
 export const getDepartmentUsage = (departmentId) => api.get(`/departments/${departmentId}/usage`)
+
+// DOCUMENTS
+export const uploadDocument = (formData) =>
+  api.post("/documents/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  })
+
+export const listDocuments = () => api.get("/documents/")
+export const deleteDocument = (documentId) => api.delete(`/documents/${documentId}`)
 
 // AUDIT
 export const getAuditLogs = (limit = 50) => api.get("/audit/", { params: { limit } })
