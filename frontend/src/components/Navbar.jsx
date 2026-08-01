@@ -30,6 +30,7 @@ export default function Navbar() {
 
   const navLinks = [
     { to: "/query", label: "Ask a question", roles: null },
+    { to: "/history", label: "History", roles: null },
     { to: "/documents", label: "Documents", roles: ["hr", "admin"] },
     { to: "/dashboard", label: "Dashboard", roles: ["admin"] },
     { to: "/audit", label: "Audit log", roles: ["admin"] },
