@@ -45,6 +45,7 @@ export const queryDocuments = (question, conversationId = null) =>
 
 export const getConversations = () => api.get("/query/conversations")
 export const getConversationDetail = (conversationId) => api.get(`/query/conversations/${conversationId}`)
+export const deleteConversation = (conversationId) => api.delete(`/query/conversations/${conversationId}`)
 
 // ADMIN
 export const getMetrics = () => api.get("/admin/metrics")
