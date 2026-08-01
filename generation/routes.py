@@ -299,3 +299,26 @@ def get_conversation(
         created_at=conversation.created_at,
         turns=[ConversationTurn.model_validate(t) for t in conversation.turns],
     )
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+def delete_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    conversation = (
+        db.query(Conversation)
+        .filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+            Conversation.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    db.query(QueryLog).filter(QueryLog.conversation_id == conversation.id).delete()
+    db.delete(conversation)
+    db.commit()
+    return None
