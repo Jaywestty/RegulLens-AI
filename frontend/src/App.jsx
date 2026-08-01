@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard"
 import UserManagement from "./pages/UserManagement"
 import OrganizationSignup from "./pages/OrganizationSignup"
 import AuditLog from "./pages/AuditLog"
+import History from "./pages/History"
 
 export default function App() {
   return (
@@ -24,6 +25,15 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Query />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <History />
               </ProtectedRoute>
             }
           />
