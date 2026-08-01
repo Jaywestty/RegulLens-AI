@@ -32,6 +32,7 @@ export default function Navbar() {
     { to: "/query", label: "Ask a question", roles: null },
     { to: "/documents", label: "Documents", roles: ["hr", "admin"] },
     { to: "/dashboard", label: "Dashboard", roles: ["admin"] },
+    { to: "/audit", label: "Audit log", roles: ["admin"] },
     { to: "/users", label: "Manage users", roles: ["hr", "admin"] },
   ]
 

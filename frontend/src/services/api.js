@@ -62,3 +62,6 @@ export const renameDepartment = (departmentId, name) =>
   api.patch(`/departments/${departmentId}`, { name })
 export const deleteDepartment = (departmentId) => api.delete(`/departments/${departmentId}`)
 export const getDepartmentUsage = (departmentId) => api.get(`/departments/${departmentId}/usage`)
+
+// AUDIT
+export const getAuditLogs = (limit = 50) => api.get("/audit/", { params: { limit } })

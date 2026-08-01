@@ -9,6 +9,7 @@ import Documents from "./pages/Documents"
 import Dashboard from "./pages/Dashboard"
 import UserManagement from "./pages/UserManagement"
 import OrganizationSignup from "./pages/OrganizationSignup"
+import AuditLog from "./pages/AuditLog"
 
 export default function App() {
   return (
@@ -50,6 +51,15 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/audit"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AuditLog />
               </ProtectedRoute>
             }
           />
