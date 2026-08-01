@@ -60,3 +60,12 @@ def download_file(storage_path: str) -> bytes:
     client = get_storage_client()
     response = client.get_object(Bucket=settings.storage_bucket, Key=storage_path)
     return response["Body"].read()
+
+def delete_file(storage_path: str) -> None:
+    """
+    Deletes a file from MinIO/S3.
+    S3-compatible delete calls are idempotent — this won't raise even if
+    the file is already gone, so it's safe to call as pure cleanup.
+    """
+    client = get_storage_client()
+    client.delete_object(Bucket=settings.storage_bucket, Key=storage_path)
