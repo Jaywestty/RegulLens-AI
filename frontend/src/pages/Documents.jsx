@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { uploadDocument, listDocuments, listDepartments } from "../services/api"
+import { uploadDocument, listDocuments, listDepartments, deleteDocument } from "../services/api"
 import Navbar from "../components/Navbar"
 
 export default function Documents() {
@@ -15,6 +15,7 @@ export default function Documents() {
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [isDragging, setIsDragging] = useState(false)
+  const [deletingDocId, setDeletingDocId] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -87,6 +88,21 @@ export default function Documents() {
       setError(err.response?.data?.detail || "Upload failed.")
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleDeleteDocument = async (doc) => {
+    if (!window.confirm(`Delete "${doc.filename}"? This cannot be undone.`)) return
+
+    setError("")
+    setDeletingDocId(doc.id)
+    try {
+      await deleteDocument(doc.id)
+      setDocuments(documents.filter((d) => d.id !== doc.id))
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to delete document.")
+    } finally {
+      setDeletingDocId(null)
     }
   }
 
@@ -276,12 +292,22 @@ export default function Documents() {
                         ` · ${departments.find((d) => d.id === doc.department_id)?.name || "Unknown department"}`}
                     </p>
                   </div>
-                  <span
-                    className="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-medium"
-                    style={statusStyle(doc.status)}
-                  >
-                    {doc.status}
-                  </span>
+                  <div className="flex-shrink-0 flex items-center gap-3">
+                    <span
+                      className="text-xs px-2.5 py-1 rounded-full font-medium"
+                      style={statusStyle(doc.status)}
+                    >
+                      {doc.status}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteDocument(doc)}
+                      disabled={deletingDocId === doc.id}
+                      className="text-xs transition-colors disabled:opacity-50"
+                      style={{ color: "var(--color-muted)" }}
+                    >
+                      {deletingDocId === doc.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
