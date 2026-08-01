@@ -1,7 +1,8 @@
 // src/pages/Query.jsx
 
-import { useState } from "react"
-import { queryDocuments } from "../services/api"
+import { useState, useEffect, useRef } from "react"
+import { useSearchParams } from "react-router-dom"
+import { queryDocuments, getConversationDetail } from "../services/api"
 import Navbar from "../components/Navbar"
 import CitationCard from "../components/CitationCard"
 
@@ -13,21 +14,61 @@ const SUGGESTED_QUESTIONS = [
 
 export default function Query() {
   const [question, setQuestion] = useState("")
-  const [result, setResult] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [conversationId, setConversationId] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadingThread, setLoadingThread] = useState(false)
   const [error, setError] = useState("")
+  const [searchParams] = useSearchParams()
+  const bottomRef = useRef(null)
+
+  useEffect(() => {
+    const existingId = searchParams.get("conversation")
+    if (!existingId) return
+
+    setLoadingThread(true)
+    getConversationDetail(existingId)
+      .then((res) => {
+        setConversationId(res.data.id)
+        const loaded = res.data.turns.flatMap((turn) => [
+          { type: "user", text: turn.query_text },
+          { type: "assistant", text: turn.answer_text, sources: [] },
+        ])
+        setMessages(loaded)
+      })
+      .catch(() => setError("Could not load that conversation."))
+      .finally(() => setLoadingThread(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, loading])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!question.trim()) return
+    if (!question.trim() || loading) return
 
+    const askedText = question
+    setMessages((prev) => [...prev, { type: "user", text: askedText }])
+    setQuestion("")
     setLoading(true)
     setError("")
-    setResult(null)
 
     try {
-      const res = await queryDocuments(question)
-      setResult(res.data)
+      const res = await queryDocuments(askedText, conversationId)
+      setConversationId(res.data.conversation_id)
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "assistant",
+          text: res.data.answer,
+          sources: res.data.sources,
+          latency_ms: res.data.latency_ms,
+          retrieval_ms: res.data.retrieval_ms,
+          generation_ms: res.data.generation_ms,
+        },
+      ])
     } catch (err) {
       setError("Something went wrong. Please try again.")
     } finally {
@@ -39,20 +80,119 @@ export default function Query() {
     setQuestion(text)
   }
 
+  const startNewConversation = () => {
+    setMessages([])
+    setConversationId(null)
+    setQuestion("")
+    setError("")
+  }
+
+  const hasThread = messages.length > 0
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
 
       <main className="max-w-2xl mx-auto px-4 py-10 lg:py-16">
 
-        <div className="text-center mb-8">
-          <h1 className="font-display text-2xl lg:text-3xl font-bold" style={{ color: "var(--color-ink)" }}>
-            Ask a compliance question
-          </h1>
-          <p className="text-sm mt-2" style={{ color: "var(--color-muted)" }}>
-            Answers are sourced strictly from your company's documents, with citations.
-          </p>
+        <div className="flex items-start justify-between gap-4 mb-8">
+          <div className={hasThread ? "" : "text-center w-full"}>
+            <h1 className="font-display text-2xl lg:text-3xl font-bold" style={{ color: "var(--color-ink)" }}>
+              Ask a compliance question
+            </h1>
+            <p className="text-sm mt-2" style={{ color: "var(--color-muted)" }}>
+              Answers are sourced strictly from your company's documents, with citations.
+            </p>
+          </div>
+
+          {hasThread && (
+            <button
+              onClick={startNewConversation}
+              className="flex-shrink-0 text-xs font-medium px-3 py-1.5 rounded-full transition-colors whitespace-nowrap"
+              style={{ color: "var(--color-primary)", backgroundColor: "var(--color-surface)" }}
+            >
+              New conversation
+            </button>
+          )}
         </div>
+
+        {loadingThread && (
+          <div className="space-y-3 mb-8">
+            <div className="h-4 rounded animate-pulse w-3/4" style={{ backgroundColor: "var(--color-surface)" }}></div>
+            <div className="h-4 rounded animate-pulse w-full" style={{ backgroundColor: "var(--color-surface)" }}></div>
+          </div>
+        )}
+
+        {hasThread && (
+          <div className="space-y-4 mb-8">
+            {messages.map((msg, i) =>
+              msg.type === "user" ? (
+                <div key={i} className="flex justify-end">
+                  <div
+                    className="max-w-[80%] rounded-2xl rounded-br-sm px-4 py-2.5 text-sm"
+                    style={{ backgroundColor: "var(--color-surface)", color: "var(--color-ink)" }}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key={i}
+                  className="rounded-2xl p-5"
+                  style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-border)", borderLeft: "4px solid var(--color-primary)" }}
+                >
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink)" }}>
+                    {msg.text}
+                  </p>
+
+                  {msg.sources?.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {msg.sources.map((source, si) => (
+                        <CitationCard key={si} source={source} index={si + 1} />
+                      ))}
+                    </div>
+                  )}
+
+                  {msg.latency_ms !== undefined && (
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <span
+                        className="text-xs px-2.5 py-1 rounded-full"
+                        style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }}
+                      >
+                        Total {msg.latency_ms}ms
+                      </span>
+                      <span
+                        className="text-xs px-2.5 py-1 rounded-full"
+                        style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }}
+                      >
+                        Retrieval {msg.retrieval_ms}ms
+                      </span>
+                      <span
+                        className="text-xs px-2.5 py-1 rounded-full"
+                        style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }}
+                      >
+                        Generation {msg.generation_ms}ms
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+
+            {loading && (
+              <div
+                className="rounded-2xl p-5 space-y-3"
+                style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-border)", borderLeft: "4px solid var(--color-primary)" }}
+              >
+                <div className="h-4 rounded animate-pulse w-3/4" style={{ backgroundColor: "var(--color-surface)" }}></div>
+                <div className="h-4 rounded animate-pulse w-full" style={{ backgroundColor: "var(--color-surface)" }}></div>
+                <div className="h-4 rounded animate-pulse w-5/6" style={{ backgroundColor: "var(--color-surface)" }}></div>
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="mb-4">
           <div
@@ -63,7 +203,7 @@ export default function Query() {
               type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="e.g. How many days of annual leave do I get?"
+              placeholder={hasThread ? "Ask a follow-up question" : "e.g. How many days of annual leave do I get?"}
               className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
               style={{ color: "var(--color-ink)" }}
             />
@@ -90,86 +230,27 @@ export default function Query() {
           </div>
         </form>
 
-        <div className="flex flex-wrap gap-2 mb-10">
-          {SUGGESTED_QUESTIONS.map((text) => (
-            <button
-              key={text}
-              type="button"
-              onClick={() => handleSuggestionClick(text)}
-              className="text-xs px-3 py-1.5 rounded-full transition-colors"
-              style={{
-                color: "var(--color-primary)",
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              {text}
-            </button>
-          ))}
-        </div>
+        {!hasThread && (
+          <div className="flex flex-wrap gap-2 mb-10">
+            {SUGGESTED_QUESTIONS.map((text) => (
+              <button
+                key={text}
+                type="button"
+                onClick={() => handleSuggestionClick(text)}
+                className="text-xs px-3 py-1.5 rounded-full transition-colors"
+                style={{
+                  color: "var(--color-primary)",
+                  backgroundColor: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                }}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && <div className="error-banner mb-6">{error}</div>}
-
-        {loading && (
-          <div className="space-y-3">
-            <div className="h-4 rounded animate-pulse w-3/4" style={{ backgroundColor: "var(--color-surface)" }}></div>
-            <div className="h-4 rounded animate-pulse w-full" style={{ backgroundColor: "var(--color-surface)" }}></div>
-            <div className="h-4 rounded animate-pulse w-5/6" style={{ backgroundColor: "var(--color-surface)" }}></div>
-          </div>
-        )}
-
-        {result && (
-          <div className="space-y-6">
-            <div
-              className="rounded-2xl p-6"
-              style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-border)", borderLeft: "4px solid var(--color-primary)" }}
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "var(--color-primary)" }}></div>
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>
-                  Answer
-                </span>
-              </div>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink)" }}>
-                {result.answer}
-              </p>
-            </div>
-
-            {result.sources?.length > 0 && (
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: "var(--color-muted)" }}>
-                  Sources
-                </p>
-                <div className="space-y-2">
-                  {result.sources.map((source, i) => (
-                    <CitationCard key={i} source={source} index={i + 1} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <span
-                className="text-xs px-2.5 py-1 rounded-full"
-                style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }}
-              >
-                Total {result.latency_ms}ms
-              </span>
-              <span
-                className="text-xs px-2.5 py-1 rounded-full"
-                style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }}
-              >
-                Retrieval {result.retrieval_ms}ms
-              </span>
-              <span
-                className="text-xs px-2.5 py-1 rounded-full"
-                style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }}
-              >
-                Generation {result.generation_ms}ms
-              </span>
-            </div>
-          </div>
-        )}
 
       </main>
     </div>
