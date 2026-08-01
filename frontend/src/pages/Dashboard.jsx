@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { getMetrics, getRecentQueries } from "../services/api"
-import Navbar from "../components/Navbar"
 
 const ICONS = {
   volume: (
@@ -92,13 +91,10 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
-        <Navbar />
-        <div className="flex items-center justify-center h-64">
-          <p className="text-sm" style={{ color: "var(--color-muted)" }}>
-            Loading metrics...
-          </p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <p className="text-sm" style={{ color: "var(--color-muted)" }}>
+          Loading metrics...
+        </p>
       </div>
     )
   }
@@ -106,10 +102,7 @@ export default function Dashboard() {
   const hallucinationRate = metrics?.hallucination_rate_percent ?? 0
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
-
-      <main className="max-w-5xl mx-auto px-4 py-10 lg:py-14">
+    <main className="max-w-5xl mx-auto px-4 py-10 lg:py-14">
 
         <button
           onClick={() => navigate("/query")}
@@ -195,7 +188,6 @@ export default function Dashboard() {
           )}
         </div>
 
-      </main>
-    </div>
+  </main>
   )
 }
