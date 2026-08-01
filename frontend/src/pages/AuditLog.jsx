@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { getAuditLogs, listUsers } from "../services/api"
-import Navbar from "../components/Navbar"
 
 const TARGET_ICONS = {
   user: (
@@ -110,10 +109,7 @@ export default function AuditLog() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
-
-      <main className="max-w-3xl mx-auto px-4 py-10 lg:py-14">
+    <main className="max-w-3xl mx-auto px-4 py-10 lg:py-14">
 
         <button
           onClick={() => navigate("/query")}
@@ -241,7 +237,6 @@ export default function AuditLog() {
           </div>
         )}
 
-      </main>
-    </div>
+    </main>
   )
 }
