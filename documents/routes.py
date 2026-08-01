@@ -14,7 +14,7 @@ from typing import Optional
 from documents.models import Document, DocumentStatus, DocumentVisibility
 from documents.processor import process_document
 from documents.embedder import embed_texts
-from documents.storage import upload_file
+from documents.storage import upload_file, delete_file
 from retrieval.opensearch import bulk_index_chunks, delete_chunks_by_document
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
@@ -197,3 +197,64 @@ def list_documents(
         }
         for d in docs
     ]
+
+@router.delete("/{document_id}", status_code=204)
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_or_admin),
+):
+    doc = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    superseding_doc = (
+        db.query(Document)
+        .filter(Document.previous_version_id == doc.id)
+        .first()
+    )
+    if superseding_doc:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Cannot delete this document: it is version history for "
+                f"'{superseding_doc.filename}' (document #{superseding_doc.id}). "
+                f"Delete the newer version first to remove the full chain."
+            ),
+        )
+
+    try:
+        delete_chunks_by_document(doc.id)
+    except Exception as e:
+        logger.error(f"Failed to delete OpenSearch chunks | document_id={doc.id} | error={str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to remove document from search index. Deletion was cancelled.",
+        )
+
+    log_audit_event(
+        db,
+        organization_id=current_user.organization_id,
+        actor_user_id=current_user.id,
+        action="document.deleted",
+        target_type="document",
+        target_id=doc.id,
+        details={"filename": doc.filename, "visibility": doc.visibility.value},
+    )
+
+    storage_path = doc.storage_path
+    db.delete(doc)
+    db.commit()
+
+    try:
+        delete_file(storage_path)
+    except Exception as e:
+        logger.warning(
+            f"Document deleted but storage cleanup failed | storage_path={storage_path} | error={str(e)}"
+        )
+
+    return None
