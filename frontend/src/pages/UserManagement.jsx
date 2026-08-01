@@ -7,6 +7,7 @@ import {
   createUser,
   listUsers,
   deleteUser,
+  changeUserRole,
   listDepartments,
   createDepartment,
   assignUserDepartments,
@@ -78,6 +79,7 @@ export default function UserManagement() {
 
   const [deletingId, setDeletingId] = useState(null)
   const [savingDepartmentsFor, setSavingDepartmentsFor] = useState(null)
+  const [changingRoleFor, setChangingRoleFor] = useState(null)
 
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState("")
@@ -156,6 +158,21 @@ export default function UserManagement() {
       setListError(err.response?.data?.detail || "Failed to delete user.")
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  const handleRoleChange = async (targetUser, newRole) => {
+    if (newRole === targetUser.role) return
+
+    setListError("")
+    setChangingRoleFor(targetUser.id)
+    try {
+      const res = await changeUserRole(targetUser.id, newRole)
+      setUsers(users.map((u) => (u.id === targetUser.id ? { ...u, role: res.data.role } : u)))
+    } catch (err) {
+      setListError(err.response?.data?.detail || "Failed to change role.")
+    } finally {
+      setChangingRoleFor(null)
     }
   }
 
@@ -263,6 +280,36 @@ export default function UserManagement() {
           )
         })}
       </div>
+    )
+  }
+
+  const renderRoleControl = (targetUser) => {
+    if (targetUser.id === currentUser?.id) {
+      return (
+        <span
+          className="px-2 py-0.5 rounded-full text-xs uppercase tracking-wider font-medium"
+          style={{ backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
+        >
+          {targetUser.role} (you)
+        </span>
+      )
+    }
+    return (
+      <select
+        value={targetUser.role}
+        onChange={(e) => handleRoleChange(targetUser, e.target.value)}
+        disabled={changingRoleFor === targetUser.id}
+        className="text-xs uppercase tracking-wider font-medium rounded-full px-2 py-1 outline-none disabled:opacity-50"
+        style={{
+          backgroundColor: "var(--color-surface)",
+          color: "var(--color-primary)",
+          border: "1px solid var(--color-border)",
+        }}
+      >
+        <option value="employee">Employee</option>
+        <option value="hr">HR</option>
+        <option value="admin">Admin</option>
+      </select>
     )
   }
 
@@ -540,14 +587,7 @@ export default function UserManagement() {
                         <td className="py-3 pr-4" style={{ color: "var(--color-muted)" }}>
                           {u.email}
                         </td>
-                        <td className="py-3 pr-4">
-                          <span
-                            className="px-2 py-0.5 rounded-full text-xs uppercase tracking-wider font-medium"
-                            style={{ backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
-                          >
-                            {u.role}
-                          </span>
-                        </td>
+                        <td className="py-3 pr-4">{renderRoleControl(u)}</td>
                         <td className="py-3 pr-4">
                           <span
                             className="px-2 py-0.5 rounded-full text-xs font-medium"
@@ -608,12 +648,7 @@ export default function UserManagement() {
                     </div>
 
                     <div className="flex items-center gap-2 mb-3">
-                      <span
-                        className="px-2 py-0.5 rounded-full text-xs uppercase tracking-wider font-medium"
-                        style={{ backgroundColor: "#FFFFFF", color: "var(--color-primary)" }}
-                      >
-                        {u.role}
-                      </span>
+                      {renderRoleControl(u)}
                       <span
                         className="px-2 py-0.5 rounded-full text-xs font-medium"
                         style={
