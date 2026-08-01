@@ -2,7 +2,7 @@
 
 import time
 from typing import List, Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from loguru import logger
@@ -15,6 +15,7 @@ from retrieval.retrieval import hybrid_search
 from generation.prompt import build_prompt
 from generation.llm import generate_answer
 from generation.faithfulness import check_faithfulness
+from datetime import datetime
 
 router = APIRouter(prefix="/query", tags=["Query"])
 
@@ -43,6 +44,32 @@ class QueryResponse(BaseModel):
     retrieval_ms: int
     generation_ms: int
     faithfulness_ms: int
+
+class ConversationSummary(BaseModel):
+    id: int
+    title: Optional[str]
+    turn_count: int
+    last_activity_at: datetime
+    created_at: datetime
+
+
+class ConversationTurn(BaseModel):
+    id: int
+    turn_number: int
+    query_text: str
+    answer_text: Optional[str]
+    hallucination_flagged: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConversationDetail(BaseModel):
+    id: int
+    title: Optional[str]
+    created_at: datetime
+    turns: List[ConversationTurn]
 
 
 @router.post("/", response_model=QueryResponse)
@@ -201,4 +228,74 @@ def query(
         retrieval_ms=retrieval_ms,
         generation_ms=generation_ms,
         faithfulness_ms=faithfulness_ms,
+    )
+
+@router.get("/conversations", response_model=List[ConversationSummary])
+def list_conversations(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Lists the current user's own past conversations, most recently
+    active first. Scoped to the user, not the organization — this is
+    personal history, not an admin oversight view.
+    """
+    conversations = (
+        db.query(Conversation)
+        .filter(
+            Conversation.user_id == current_user.id,
+            Conversation.organization_id == current_user.organization_id,
+        )
+        .order_by(Conversation.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+    summaries = []
+    for conv in conversations:
+        if not conv.turns:
+            # A conversation row can exist with zero logged turns if the
+            # pipeline failed after the conversation was created but
+            # before the first QueryLog was written. Skip rather than
+            # show an empty, confusing entry.
+            continue
+        summaries.append(
+            ConversationSummary(
+                id=conv.id,
+                title=conv.title,
+                turn_count=len(conv.turns),
+                last_activity_at=conv.turns[-1].created_at,
+                created_at=conv.created_at,
+            )
+        )
+
+    summaries.sort(key=lambda s: s.last_activity_at, reverse=True)
+    return summaries
+
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
+def get_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Returns the full turn-by-turn history for one of the current user's own conversations."""
+    conversation = (
+        db.query(Conversation)
+        .filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+            Conversation.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    return ConversationDetail(
+        id=conversation.id,
+        title=conversation.title,
+        created_at=conversation.created_at,
+        turns=[ConversationTurn.model_validate(t) for t in conversation.turns],
     )
