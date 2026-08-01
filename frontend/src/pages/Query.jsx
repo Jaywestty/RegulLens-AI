@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
 import { queryDocuments, getConversationDetail } from "../services/api"
-import Navbar from "../components/Navbar"
 import CitationCard from "../components/CitationCard"
 
 const SUGGESTED_QUESTIONS = [
@@ -101,10 +100,7 @@ export default function Query() {
   const hasThread = messages.length > 0
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
-
-      <main className="max-w-2xl mx-auto px-4 py-10 lg:py-16">
+    <main className="max-w-2xl mx-auto px-4 py-10 lg:py-16">
 
         <div className="flex items-start justify-between gap-4 mb-8">
           <div className={hasThread ? "" : "text-center w-full"}>
@@ -306,8 +302,6 @@ export default function Query() {
         )}
 
         {error && <div className="error-banner mb-6">{error}</div>}
-
-      </main>
-    </div>
+    </main>
   )
 }
