@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { uploadDocument, listDocuments, listDepartments, deleteDocument } from "../services/api"
-import Navbar from "../components/Navbar"
 
 export default function Documents() {
   const [documents, setDocuments] = useState([])
@@ -113,10 +112,7 @@ export default function Documents() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
-
-      <main className="max-w-3xl mx-auto px-4 py-10 lg:py-14">
+    <main className="max-w-3xl mx-auto px-4 py-10 lg:py-14">
 
         <button
           onClick={() => navigate("/query")}
@@ -313,8 +309,6 @@ export default function Documents() {
             </div>
           )}
         </div>
-
-      </main>
-    </div>
+    </main>
   )
 }
