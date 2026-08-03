@@ -56,7 +56,7 @@ export default function OrganizationSignup() {
 
         <BrandMark className="w-14 h-14 mb-4 relative" />
         <h1 className="font-display text-2xl lg:text-3xl font-bold relative">
-          Compliance Intelligence
+          Regulens AI
         </h1>
         <p className="text-white/80 text-sm mt-2 max-w-xs relative">
           Set up your company's private workspace in under a minute.
