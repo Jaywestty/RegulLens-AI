@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Outlet, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import Sidebar from "./Sidebar"
-import TopBar from "./TopBar"
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -25,6 +24,7 @@ export default function Layout() {
         onToggleCollapse={() => setCollapsed(!collapsed)}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
+        onLogout={handleLogout}
       />
 
       {mobileOpen && (
@@ -35,11 +35,23 @@ export default function Layout() {
         />
       )}
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopBar user={user} onLogout={handleLogout} onOpenMobileSidebar={() => setMobileOpen(true)} />
-        <main className="flex-1">
-          <Outlet />
-        </main>
+      {!mobileOpen && (
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open menu"
+          className="lg:hidden fixed top-4 right-4 z-20 w-10 h-10 rounded-full flex items-center justify-center shadow-sm"
+          style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-border)", color: "var(--color-primary)" }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      )}
+
+      <div className="flex-1 min-w-0 pt-16 lg:pt-0">
+        <Outlet />
       </div>
     </div>
   )
