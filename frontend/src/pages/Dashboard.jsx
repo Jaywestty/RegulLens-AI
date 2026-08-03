@@ -1,7 +1,6 @@
 // src/pages/Dashboard.jsx
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
 import { getMetrics, getRecentQueries } from "../services/api"
 
 const ICONS = {
@@ -78,7 +77,6 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState(null)
   const [queries, setQueries] = useState([])
   const [loading, setLoading] = useState(true)
-  const navigate = useNavigate()
 
   useEffect(() => {
     Promise.all([getMetrics(), getRecentQueries()])
@@ -103,16 +101,6 @@ export default function Dashboard() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-10 lg:py-14">
-
-        <button
-          onClick={() => navigate("/query")}
-          aria-label="Back to ask a question"
-          className="back-btn mb-6"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
 
         <div className="mb-8">
           <h1 className="font-display text-2xl font-bold" style={{ color: "var(--color-ink)" }}>
