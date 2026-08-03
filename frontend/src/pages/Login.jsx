@@ -48,7 +48,7 @@ export default function Login() {
 
         <BrandMark className="w-14 h-14 mb-4 relative" />
         <h1 className="font-display text-2xl lg:text-3xl font-bold relative">
-          Compliance Intelligence
+          Regulens AI
         </h1>
         <p className="text-white/80 text-sm mt-2 max-w-xs relative">
           Ask your company's policies a question and get a cited, trustworthy answer in seconds.
