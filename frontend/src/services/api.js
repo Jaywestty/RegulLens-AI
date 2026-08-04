@@ -2,7 +2,7 @@
 
 import axios from "axios"
 
-const BASE_URL = "http://127.0.0.1:8000"
+const BASE_URL = "/api"
 
 // Create an axios instance with our base URL
 // Every request made through this instance automatically includes the base URL
