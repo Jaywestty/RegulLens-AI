@@ -101,6 +101,7 @@ def get_recent_queries(
             "query": log.query_text,
             "latency_ms": log.latency_ms,
             "retrieval_score": log.retrieval_score,
+            "faithfulness_score": log.faithfulness_score,
             "hallucination_flagged": log.hallucination_flagged,
             "created_at": log.created_at,
         }
