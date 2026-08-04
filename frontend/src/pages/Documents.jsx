@@ -1,6 +1,6 @@
 // src/pages/Documents.jsx
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { uploadDocument, listDocuments, listDepartments, deleteDocument } from "../services/api"
 
 export default function Documents() {
@@ -14,6 +14,8 @@ export default function Documents() {
   const [error, setError] = useState("")
   const [isDragging, setIsDragging] = useState(false)
   const [deletingDocId, setDeletingDocId] = useState(null)
+  const [replacingDoc, setReplacingDoc] = useState(null)
+  const formRef = useRef(null)
 
   useEffect(() => {
     fetchDocuments()
@@ -60,6 +62,23 @@ export default function Documents() {
     return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
   }
 
+  const startReplace = (doc) => {
+    setReplacingDoc(doc)
+    setVisibility(doc.visibility)
+    setDepartmentId(doc.department_id ? String(doc.department_id) : "")
+    setFile(null)
+    setMessage("")
+    setError("")
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  const cancelReplace = () => {
+    setReplacingDoc(null)
+    setVisibility("all")
+    setDepartmentId("")
+    setFile(null)
+  }
+
   const handleUpload = async (e) => {
     e.preventDefault()
     if (!file) return
@@ -74,12 +93,23 @@ export default function Documents() {
     if (departmentId) {
       formData.append("department_id", departmentId)
     }
+    if (replacingDoc) {
+      formData.append("replaces_document_id", replacingDoc.id)
+    }
 
     try {
       const res = await uploadDocument(formData)
-      setMessage(`Uploaded successfully. ${res.data.chunks_created} chunks indexed.`)
+      if (res.data.replaces_document_id) {
+        setMessage(
+          `Uploaded as version ${res.data.version}, replacing the previous version. ${res.data.chunks_created} chunks indexed.`
+        )
+      } else {
+        setMessage(`Uploaded successfully. ${res.data.chunks_created} chunks indexed.`)
+      }
       setFile(null)
+      setReplacingDoc(null)
       setDepartmentId("")
+      setVisibility("all")
       fetchDocuments()
     } catch (err) {
       setError(err.response?.data?.detail || "Upload failed.")
@@ -122,12 +152,35 @@ export default function Documents() {
         </div>
 
         <div
+          ref={formRef}
           className="rounded-2xl p-6 mb-10"
-          style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--color-border)" }}
+          style={{
+            backgroundColor: "#FFFFFF",
+            border: replacingDoc ? "1.5px solid var(--color-primary)" : "1px solid var(--color-border)",
+          }}
         >
-          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
-            Upload a document
-          </h2>
+          {replacingDoc ? (
+            <div
+              className="flex items-center justify-between gap-3 mb-4 rounded-xl px-4 py-3"
+              style={{ backgroundColor: "var(--color-surface)" }}
+            >
+              <p className="text-sm min-w-0 truncate" style={{ color: "var(--color-ink)" }}>
+                Replacing: <span className="font-semibold">{replacingDoc.filename}</span>
+              </p>
+              <button
+                type="button"
+                onClick={cancelReplace}
+                className="flex-shrink-0 text-xs font-medium"
+                style={{ color: "var(--color-primary)" }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
+              Upload a document
+            </h2>
+          )}
 
           <form onSubmit={handleUpload} className="space-y-5">
 
@@ -203,7 +256,8 @@ export default function Documents() {
                 <select
                   value={visibility}
                   onChange={(e) => setVisibility(e.target.value)}
-                  className="field-input"
+                  disabled={!!replacingDoc}
+                  className="field-input disabled:opacity-60"
                 >
                   <option value="all">All employees</option>
                   <option value="hr_only">HR and Admin only</option>
@@ -216,7 +270,8 @@ export default function Documents() {
                 <select
                   value={departmentId}
                   onChange={(e) => setDepartmentId(e.target.value)}
-                  className="field-input"
+                  disabled={!!replacingDoc}
+                  className="field-input disabled:opacity-60"
                 >
                   <option value="">General (no restriction)</option>
                   {departments.map((dept) => (
@@ -227,6 +282,12 @@ export default function Documents() {
                 </select>
               </div>
             </div>
+
+            {replacingDoc && (
+              <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+                Visibility and department are inherited from the version being replaced.
+              </p>
+            )}
 
             {message && (
               <p
@@ -244,7 +305,7 @@ export default function Documents() {
               disabled={uploading || !file}
               className="btn-primary sm:w-auto sm:px-8"
             >
-              {uploading ? "Uploading..." : "Upload document"}
+              {uploading ? "Uploading..." : replacingDoc ? "Upload replacement" : "Upload document"}
             </button>
           </form>
         </div>
@@ -271,7 +332,7 @@ export default function Documents() {
                       {doc.filename}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
-                      {doc.chunk_count} chunks · {doc.visibility}
+                      v{doc.version} · {doc.chunk_count} chunks · {doc.visibility}
                       {doc.department_id &&
                         ` · ${departments.find((d) => d.id === doc.department_id)?.name || "Unknown department"}`}
                     </p>
@@ -283,6 +344,15 @@ export default function Documents() {
                     >
                       {doc.status}
                     </span>
+                    {doc.status !== "superseded" && (
+                      <button
+                        onClick={() => startReplace(doc)}
+                        className="text-xs transition-colors"
+                        style={{ color: "var(--color-primary)" }}
+                      >
+                        Replace
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteDocument(doc)}
                       disabled={deletingDocId === doc.id}
