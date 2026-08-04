@@ -161,6 +161,15 @@ export default function Dashboard() {
                     >
                       Score {q.retrieval_score}
                     </span>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full"
+                      style={{
+                        color: q.faithfulness_score < 55 ? "#92400E" : "var(--color-muted)",
+                        backgroundColor: q.faithfulness_score < 55 ? "#FEF3C7" : "var(--color-surface)",
+                      }}
+                    >
+                      Faithfulness {q.faithfulness_score}
+                    </span>
                     {q.hallucination_flagged && (
                       <span
                         className="text-xs px-2 py-0.5 rounded-full font-medium"
